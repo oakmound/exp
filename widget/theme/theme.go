@@ -9,7 +9,7 @@ import (
 	"image"
 	"image/color"
 
-	"golang.org/x/exp/shiny/unit"
+	"github.com/oakmound/shiny/unit"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/inconsolata"
 	"golang.org/x/image/math/fixed"

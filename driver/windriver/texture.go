@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"golang.org/x/exp/shiny/driver/internal/win32"
-	"golang.org/x/exp/shiny/screen"
+	"github.com/oakmound/shiny/driver/internal/win32"
+	"github.com/oakmound/shiny/screen"
 )
 
 type textureImpl struct {

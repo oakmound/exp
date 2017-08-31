@@ -11,7 +11,7 @@ package driver
 // or OpenGL library.
 
 import (
-	"golang.org/x/exp/shiny/screen"
+	"github.com/oakmound/shiny/screen"
 )
 
 // Main is called by the program's main function to run the graphical

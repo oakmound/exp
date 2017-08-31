@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"golang.org/x/exp/shiny/iconvg"
+	"github.com/oakmound/shiny/iconvg"
 )
 
 func Example() {

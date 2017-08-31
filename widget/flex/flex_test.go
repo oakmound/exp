@@ -11,10 +11,10 @@ import (
 	"image/color"
 	"testing"
 
-	"golang.org/x/exp/shiny/unit"
-	"golang.org/x/exp/shiny/widget"
-	"golang.org/x/exp/shiny/widget/node"
-	"golang.org/x/exp/shiny/widget/theme"
+	"github.com/oakmound/shiny/unit"
+	"github.com/oakmound/shiny/widget"
+	"github.com/oakmound/shiny/widget/node"
+	"github.com/oakmound/shiny/widget/theme"
 )
 
 type layoutTest struct {

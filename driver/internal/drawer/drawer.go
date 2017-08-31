@@ -9,7 +9,7 @@ import (
 	"image"
 	"image/draw"
 
-	"golang.org/x/exp/shiny/screen"
+	"github.com/oakmound/shiny/screen"
 	"golang.org/x/image/math/f64"
 )
 

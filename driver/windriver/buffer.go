@@ -12,7 +12,7 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/x/exp/shiny/driver/internal/swizzle"
+	"github.com/oakmound/shiny/driver/internal/swizzle"
 )
 
 type bufferImpl struct {

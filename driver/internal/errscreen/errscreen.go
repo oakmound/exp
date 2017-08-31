@@ -8,7 +8,7 @@ package errscreen
 import (
 	"image"
 
-	"golang.org/x/exp/shiny/screen"
+	"github.com/oakmound/shiny/screen"
 )
 
 // Stub returns a Screen whose methods all return the given error.

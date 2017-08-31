@@ -15,8 +15,8 @@
 //	package main
 //
 //	import (
-//		"golang.org/x/exp/shiny/driver"
-//		"golang.org/x/exp/shiny/screen"
+//		"github.com/oakmound/shiny/driver"
+//		"github.com/oakmound/shiny/screen"
 //		"golang.org/x/mobile/event/lifecycle"
 //	)
 //

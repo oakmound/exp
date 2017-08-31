@@ -10,11 +10,11 @@ package widget
 import (
 	"image"
 
-	"golang.org/x/exp/shiny/gesture"
-	"golang.org/x/exp/shiny/screen"
-	"golang.org/x/exp/shiny/unit"
-	"golang.org/x/exp/shiny/widget/node"
-	"golang.org/x/exp/shiny/widget/theme"
+	"github.com/oakmound/shiny/gesture"
+	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/shiny/unit"
+	"github.com/oakmound/shiny/widget/node"
+	"github.com/oakmound/shiny/widget/theme"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/mobile/event/lifecycle"
 	"golang.org/x/mobile/event/mouse"

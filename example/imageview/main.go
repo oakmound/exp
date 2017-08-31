@@ -18,9 +18,9 @@ import (
 	"log"
 	"os"
 
-	"golang.org/x/exp/shiny/driver"
-	"golang.org/x/exp/shiny/screen"
-	"golang.org/x/exp/shiny/widget"
+	"github.com/oakmound/shiny/driver"
+	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/shiny/widget"
 
 	_ "image/gif"
 	_ "image/jpeg"

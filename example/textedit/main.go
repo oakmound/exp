@@ -17,12 +17,12 @@ package main
 import (
 	"log"
 
-	"golang.org/x/exp/shiny/driver"
-	"golang.org/x/exp/shiny/screen"
-	"golang.org/x/exp/shiny/unit"
-	"golang.org/x/exp/shiny/widget"
-	"golang.org/x/exp/shiny/widget/node"
-	"golang.org/x/exp/shiny/widget/theme"
+	"github.com/oakmound/shiny/driver"
+	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/shiny/unit"
+	"github.com/oakmound/shiny/widget"
+	"github.com/oakmound/shiny/widget/node"
+	"github.com/oakmound/shiny/widget/theme"
 )
 
 func stretch(n node.Node, alongWeight int) node.Node {

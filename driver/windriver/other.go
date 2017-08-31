@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"runtime"
 
-	"golang.org/x/exp/shiny/driver/internal/errscreen"
-	"golang.org/x/exp/shiny/screen"
+	"github.com/oakmound/shiny/driver/internal/errscreen"
+	"github.com/oakmound/shiny/screen"
 )
 
 // Main is called by the program's main function to run the graphical

@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/exp/shiny/driver"
-	"golang.org/x/exp/shiny/screen"
+	"github.com/oakmound/shiny/driver"
+	"github.com/oakmound/shiny/screen"
 	"golang.org/x/mobile/event/lifecycle"
 	"golang.org/x/mobile/event/mouse"
 	"golang.org/x/mobile/event/paint"

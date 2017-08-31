@@ -10,7 +10,7 @@ import (
 	"image/draw"
 	"math"
 
-	"golang.org/x/exp/shiny/iconvg/internal/gradient"
+	"github.com/oakmound/shiny/iconvg/internal/gradient"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/image/vector"
 )
