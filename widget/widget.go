@@ -5,7 +5,7 @@
 // Package widget provides graphical user interface widgets.
 //
 // TODO: give an overview and some example code.
-package widget // import "golang.org/x/exp/shiny/widget"
+package widget
 
 import (
 	"image"

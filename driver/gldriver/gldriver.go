@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package gldriver provides an OpenGL driver for accessing a screen.
-package gldriver // import "golang.org/x/exp/shiny/driver/gldriver"
+package gldriver
 
 import (
 	"encoding/binary"
