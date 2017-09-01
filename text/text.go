@@ -515,7 +515,7 @@ func (f *Frame) readRune(b, k int32) (r rune, size int, newB, newK int32) {
 	// utf8.UTFMax bytes from multiple Boxes into a single contiguous buffer.
 	buf := [utf8.UTFMax]byte{}
 	newBAndKs := [utf8.UTFMax + 1]bAndK{
-		0: bAndK{b, k},
+		0: {b, k},
 	}
 	n := int32(0)
 	for {
@@ -552,7 +552,7 @@ func (f *Frame) readLastRune(b, k int32) (r rune, size int, newB, newK int32) {
 	// In the fastest, common case, see if we can read a rune without crossing
 	// a Box boundary.
 	r, size = utf8.DecodeLastRune(f.text[bb.i:k])
-	if r < utf8.RuneSelf || size > 1 {
+	if r < utf8.RuneSelf || size > 1 { 
 		return r, size, b, k - int32(size)
 	}
 
@@ -561,7 +561,7 @@ func (f *Frame) readLastRune(b, k int32) (r rune, size int, newB, newK int32) {
 	// utf8.UTFMax bytes from multiple Boxes into a single contiguous buffer.
 	buf := [utf8.UTFMax]byte{}
 	newBAndKs := [utf8.UTFMax + 1]bAndK{
-		utf8.UTFMax: bAndK{b, k},
+		utf8.UTFMax: {b, k},
 	}
 	n := int32(utf8.UTFMax)
 	for {
