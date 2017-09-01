@@ -288,16 +288,22 @@ func AddScreenMsg(fn func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintp
 	return uMsg
 }
 
+var (
+	windowInit = sync.Once{}
+)
+
 func screenWindowWndProc(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	switch uMsg {
 	case msgCreateWindow:
 		p := (*newWindowParams)(unsafe.Pointer(lParam))
 		p.w, p.err = newWindow(p.opts)
 	case msgMainCallback:
-		go func() {
-			mainCallback()
-			SendScreenMessage(msgQuit, 0, 0)
-		}()
+		windowInit.Do(func() {
+			go func() {
+				mainCallback()
+				SendScreenMessage(msgQuit, 0, 0)
+			}()
+		})
 	case msgQuit:
 		_PostQuitMessage(0)
 	}
