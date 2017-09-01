@@ -450,7 +450,9 @@ func SendMessage(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintpt
 	return sendMessage(hwnd, uMsg, wParam, lParam)
 }
 
-// Todo: don't
+// Todo: this (and other globals) forces this package to only be able to run one window.
+// Can we change this?
+
 var mainCallback func()
 
 func Main(f func()) (retErr error) {
