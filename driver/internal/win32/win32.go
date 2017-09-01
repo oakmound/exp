@@ -450,6 +450,7 @@ func SendMessage(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintpt
 	return sendMessage(hwnd, uMsg, wParam, lParam)
 }
 
+// Todo: don't
 var mainCallback func()
 
 func Main(f func()) (retErr error) {
