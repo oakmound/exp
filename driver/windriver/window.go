@@ -269,5 +269,4 @@ func handleCmd(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) {
 	default:
 		c.err = fmt.Errorf("unknown command id=%d", c.id)
 	}
-	return
 }

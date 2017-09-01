@@ -39,7 +39,7 @@ const (
 // Piece represents a stone on the board. A nil Piece is "blank".
 // The delta records pixel offset from the central dot.
 type Piece struct {
-	stone *Stone
+	stone *Stone 
 	ij    IJ
 	delta image.Point
 	color stoneColor
@@ -180,7 +180,7 @@ func get(name string, size int) image.Image {
 	if size != 0 {
 		r := i.Bounds()
 		if r.Dx() != size || r.Dy() != size {
-			log.Fatalf("bad stone size %s for %s; must be %d[2]×%d[2]", r, name, size)
+			log.Fatalf("bad stone size %s for %s; must be %d[2]×%d[2]", size, r, name, size)
 		}
 	}
 	return i
