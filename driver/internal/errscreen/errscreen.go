@@ -20,6 +20,6 @@ type stub struct {
 	err error
 }
 
-func (s stub) NewBuffer(size image.Point) (screen.Buffer, error)              { return nil, s.err }
+func (s stub) NewImage(size image.Point) (screen.Image, error)              { return nil, s.err }
 func (s stub) NewTexture(size image.Point) (screen.Texture, error)            { return nil, s.err }
 func (s stub) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) { return nil, s.err }

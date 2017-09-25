@@ -51,7 +51,7 @@ func main() {
 		defer w.Release()
 
 		size0 := image.Point{256, 256}
-		b, err := s.NewBuffer(size0)
+		b, err := s.NewImage(size0)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -26,7 +26,7 @@ type screenImpl struct {
 	windows map[syscall.Handle]*windowImpl
 }
 
-func (*screenImpl) NewBuffer(size image.Point) (screen.Buffer, error) {
+func (*screenImpl) NewImage(size image.Point) (screen.Image, error) {
 	// Buffer length must fit in BITMAPINFO.Header.SizeImage (uint32), as
 	// well as in Go slice length (int). It's easiest to be consistent
 	// between 32-bit and 64-bit, so we just use int32.

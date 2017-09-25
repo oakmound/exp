@@ -267,7 +267,7 @@ const (
 	maxShmSize = 0x10000000 // 268,435,456 bytes.
 )
 
-func (s *screenImpl) NewBuffer(size image.Point) (retBuf screen.Buffer, retErr error) {
+func (s *screenImpl) NewImage(size image.Point) (retBuf screen.Image, retErr error) {
 	// TODO: detect if the X11 server or connection cannot support SHM pixmaps,
 	// and fall back to regular pixmaps.
 

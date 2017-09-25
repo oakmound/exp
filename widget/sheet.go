@@ -29,7 +29,7 @@ import (
 // should not scroll the former.
 type Sheet struct {
 	node.ShellEmbed
-	buf screen.Buffer
+	buf screen.Image
 	tex screen.Texture
 }
 
@@ -67,7 +67,7 @@ func (w *Sheet) Paint(ctx *node.PaintContext, origin image.Point) (retErr error)
 		w.release()
 	}
 	if w.buf == nil {
-		w.buf, retErr = ctx.Screen.NewBuffer(size)
+		w.buf, retErr = ctx.Screen.NewImage(size)
 		if retErr != nil {
 			w.release()
 			return retErr

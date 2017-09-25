@@ -115,7 +115,7 @@ func (w *windowImpl) Release() {
 	closeWindow(w.id)
 }
 
-func (w *windowImpl) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
 	originalSRMin := sr.Min
 	sr = sr.Intersect(src.Bounds())
 	if sr.Empty() {

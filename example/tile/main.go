@@ -199,7 +199,7 @@ func (p *tilePool) get(tp image.Point) (screen.Texture, error) {
 	if err != nil {
 		return nil, err
 	}
-	buf, err := p.screen.NewBuffer(tileSize)
+	buf, err := p.screen.NewImage(tileSize)
 	if err != nil {
 		tex.Release()
 		return nil, err

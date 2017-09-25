@@ -24,10 +24,10 @@ import (
 )
 
 // TODO: change this to true, after manual testing on Win32.
-const useLifecycler = false
+const useLifecycler = true
 
 // TODO: change this to true, after manual testing on Win32.
-const handleSizeEventsAtChannelReceive = false
+const handleSizeEventsAtChannelReceive = true
 
 func main(f func(screen.Screen)) error {
 	return win32.Main(func() { f(theScreen) })

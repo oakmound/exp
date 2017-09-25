@@ -42,7 +42,7 @@ func (w *windowImpl) Release() {
 	win32.Release(w.hwnd)
 }
 
-func (w *windowImpl) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
 	src.(*bufferImpl).preUpload()
 	defer src.(*bufferImpl).postUpload()
 

@@ -44,7 +44,7 @@ func (b *bufferImpl) preUpload() {
 	// Check that the program hasn't tried to modify the rgba field via the
 	// pointer returned by the bufferImpl.RGBA method. This check doesn't catch
 	// 100% of all cases; it simply tries to detect some invalid uses of a
-	// screen.Buffer such as:
+	// screen.Image such as:
 	//	*buffer.RGBA() = anotherImageRGBA
 	if len(b.buf) != 0 && len(b.rgba.Pix) != 0 && &b.buf[0] != &b.rgba.Pix[0] {
 		panic("x11driver: invalid Buffer.RGBA modification")

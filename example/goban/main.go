@@ -47,7 +47,7 @@ func main() {
 		}
 		defer w.Release()
 
-		var b screen.Buffer
+		var b screen.Image
 		defer func() {
 			if b != nil {
 				b.Release()
@@ -93,7 +93,7 @@ func main() {
 				if b != nil {
 					b.Release()
 				}
-				b, err = s.NewBuffer(e.Size())
+				b, err = s.NewImage(e.Size())
 				if err != nil {
 					log.Fatal(err)
 				}

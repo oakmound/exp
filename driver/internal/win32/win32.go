@@ -72,7 +72,7 @@ func newWindow(opts *screen.NewWindowOptions) (syscall.Handle, error) {
 	}
 	hwnd, err := _CreateWindowEx(0,
 		wcname, title,
-		_WS_OVERLAPPEDWINDOW,
+		WS_OVERLAPPEDWINDOW,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		0, 0, hThisInstance, 0)
@@ -415,7 +415,7 @@ func initScreenWindow() (err error) {
 	}
 	screenHWND, err = _CreateWindowEx(0,
 		swc, emptyString,
-		_WS_OVERLAPPEDWINDOW,
+		WS_OVERLAPPEDWINDOW,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_HWND_MESSAGE, 0, hThisInstance, 0)

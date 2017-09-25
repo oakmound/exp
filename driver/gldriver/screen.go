@@ -39,7 +39,7 @@ type screenImpl struct {
 	windows map[uintptr]*windowImpl
 }
 
-func (s *screenImpl) NewBuffer(size image.Point) (retBuf screen.Buffer, retErr error) {
+func (s *screenImpl) NewImage(size image.Point) (retBuf screen.Image, retErr error) {
 	m := image.NewRGBA(image.Rectangle{Max: size})
 	return &bufferImpl{
 		buf:  m.Pix,

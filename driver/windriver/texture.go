@@ -124,7 +124,7 @@ func (t *textureImpl) Size() image.Point {
 	return t.size
 }
 
-func (t *textureImpl) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+func (t *textureImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
 	err := t.update(func(dc syscall.Handle) error {
 		return src.(*bufferImpl).blitToDC(dc, dp, sr)
 	})

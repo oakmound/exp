@@ -55,7 +55,7 @@ func (t *textureImpl) Release() {
 	xproto.FreePixmap(t.s.xc, t.xm)
 }
 
-func (t *textureImpl) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+func (t *textureImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
 	if t.degenerate() {
 		return
 	}

@@ -66,7 +66,7 @@ func (w *windowImpl) Release() {
 	xproto.DestroyWindow(w.s.xc, w.xw)
 }
 
-func (w *windowImpl) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
 	src.(*bufferImpl).upload(xproto.Drawable(w.xw), w.xg, w.s.xsi.RootDepth, dp, sr)
 }
 

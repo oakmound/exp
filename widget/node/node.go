@@ -120,7 +120,7 @@ type Node interface {
 	// pass. Is that exposed via the screen.Drawer or by another mechanism?
 	//
 	// The Paint method may create base pass RGBA pixel buffers, by calling
-	// ctx.Screen.NewBuffer. Many implementations won't, and instead assume
+	// ctx.Screen.NewImage. Many implementations won't, and instead assume
 	// that PaintBase is recursively triggered by an ancestor node such as a
 	// widget.Sheet. If it does create those RGBA pixel buffers, it is also
 	// responsible for calling PaintBase on this node (and its children). In

@@ -54,7 +54,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		buf, tex := screen.Buffer(nil), screen.Texture(nil)
+		buf, tex := screen.Image(nil), screen.Texture(nil)
 		defer func() {
 			if buf != nil {
 				tex.Release()
@@ -82,7 +82,7 @@ func main() {
 				case lifecycle.CrossOn:
 					pauseChan <- play
 					var err error
-					buf, err = s.NewBuffer(image.Point{N, N})
+					buf, err = s.NewImage(image.Point{N, N})
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -161,7 +161,7 @@ const (
 var pauseChan = make(chan bool, 64)
 
 // uploadEvent signals that the shared pix slice should be uploaded to the
-// screen.Texture via the screen.Buffer.
+// screen.Texture via the screen.Image.
 type uploadEvent struct{}
 
 var shared = struct {
