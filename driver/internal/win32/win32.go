@@ -10,6 +10,7 @@
 package win32
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -88,7 +89,7 @@ func newWindow(opts *screen.NewWindowOptions) (syscall.Handle, error) {
 // ResizeClientRect makes hwnd client rectangle opts.Width by opts.Height in size.
 func ResizeClientRect(hwnd syscall.Handle, opts *screen.NewWindowOptions) error {
 	if opts == nil || opts.Width <= 0 || opts.Height <= 0 {
-		return nil
+		return errors.New("Invalid inputs to ResizeClientRect")
 	}
 	var cr, wr _RECT
 	err := _GetClientRect(hwnd, &cr)
