@@ -4,6 +4,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/AllenDang/w32"
 	"golang.org/x/sys/windows"
 )
 
@@ -39,10 +40,8 @@ var (
 
 	procGetDC             = moduser32.NewProc("GetDC")
 	procReleaseDC         = moduser32.NewProc("ReleaseDC")
-	procSendMessageW      = moduser32.NewProc("SendMessageW")
 	procCreateWindowExW   = moduser32.NewProc("CreateWindowExW")
 	procDefWindowProcW    = moduser32.NewProc("DefWindowProcW")
-	procDestroyWindow     = moduser32.NewProc("DestroyWindow")
 	procDispatchMessageW  = moduser32.NewProc("DispatchMessageW")
 	procGetClientRect     = moduser32.NewProc("GetClientRect")
 	procGetWindowRect     = moduser32.NewProc("GetWindowRect")
@@ -53,7 +52,6 @@ var (
 	procLoadCursorW       = moduser32.NewProc("LoadCursorW")
 	procLoadIconW         = moduser32.NewProc("LoadIconW")
 	procMoveWindow        = moduser32.NewProc("MoveWindow")
-	procPostMessageW      = moduser32.NewProc("PostMessageW")
 	procPostQuitMessage   = moduser32.NewProc("PostQuitMessage")
 	procRegisterClassW    = moduser32.NewProc("RegisterClassW")
 	procShowWindow        = moduser32.NewProc("ShowWindow")
@@ -63,7 +61,7 @@ var (
 	procSetWindowPos      = moduser32.NewProc("SetWindowPos")
 )
 
-func GetDC(hwnd syscall.Handle) (dc syscall.Handle, err error) {
+func GetDC(hwnd w32.HWND) (dc syscall.Handle, err error) {
 	r0, _, e1 := syscall.Syscall(procGetDC.Addr(), 1, uintptr(hwnd), 0, 0)
 	dc = syscall.Handle(r0)
 	if dc == 0 {
@@ -76,7 +74,7 @@ func GetDC(hwnd syscall.Handle) (dc syscall.Handle, err error) {
 	return
 }
 
-func ReleaseDC(hwnd syscall.Handle, dc syscall.Handle) (err error) {
+func ReleaseDC(hwnd w32.HWND, dc syscall.Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procReleaseDC.Addr(), 2, uintptr(hwnd), uintptr(dc), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
@@ -84,42 +82,22 @@ func ReleaseDC(hwnd syscall.Handle, dc syscall.Handle) (err error) {
 	return
 }
 
-func sendMessage(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
-	r0, _, _ := syscall.Syscall6(procSendMessageW.Addr(), 4, uintptr(hwnd), uintptr(uMsg), uintptr(wParam), uintptr(lParam), 0, 0)
-	lResult = uintptr(r0)
-	return
-}
-
-func _CreateWindowEx(exstyle uint32, className *uint16, windowText *uint16, style uint32, x int32, y int32, width int32, height int32, parent syscall.Handle, menu syscall.Handle, hInstance syscall.Handle, lpParam uintptr) (hwnd syscall.Handle, err error) {
+func _CreateWindowEx(exstyle uint32, className *uint16, windowText *uint16, style uint32, x int32, y int32, width int32, height int32, parent w32.HWND, menu syscall.Handle, hInstance w32.HINSTANCE, lpParam uintptr) (hwnd w32.HWND, err error) {
 	r0, _, e1 := syscall.Syscall12(procCreateWindowExW.Addr(), 12, uintptr(exstyle), uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(windowText)), uintptr(style), uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(parent), uintptr(menu), uintptr(hInstance), uintptr(lpParam))
-	hwnd = syscall.Handle(r0)
+	hwnd = w32.HWND(r0)
 	if hwnd == 0 {
 		err = errnoErr(e1)
 	}
 	return
 }
 
-func _DefWindowProc(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
+func _DefWindowProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	r0, _, _ := syscall.Syscall6(procDefWindowProcW.Addr(), 4, uintptr(hwnd), uintptr(uMsg), uintptr(wParam), uintptr(lParam), 0, 0)
 	lResult = uintptr(r0)
 	return
 }
 
-func _DestroyWindow(hwnd syscall.Handle) (err error) {
-	r1, _, e1 := syscall.Syscall(procDestroyWindow.Addr(), 1, uintptr(hwnd), 0, 0)
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func _DispatchMessage(msg *_MSG) (ret int32) {
-	r0, _, _ := syscall.Syscall(procDispatchMessageW.Addr(), 1, uintptr(unsafe.Pointer(msg)), 0, 0)
-	ret = int32(r0)
-	return
-}
-
-func _GetClientRect(hwnd syscall.Handle, rect *_RECT) (err error) {
+func _GetClientRect(hwnd w32.HWND, rect *_RECT) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetClientRect.Addr(), 2, uintptr(hwnd), uintptr(unsafe.Pointer(rect)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
@@ -127,7 +105,7 @@ func _GetClientRect(hwnd syscall.Handle, rect *_RECT) (err error) {
 	return
 }
 
-func _GetWindowRect(hwnd syscall.Handle, rect *_RECT) (err error) {
+func _GetWindowRect(hwnd w32.HWND, rect *_RECT) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetWindowRect.Addr(), 2, uintptr(hwnd), uintptr(unsafe.Pointer(rect)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
@@ -155,7 +133,7 @@ func _GetKeyState(virtkey int32) (keystatus int16) {
 	return
 }
 
-func _GetMessage(msg *_MSG, hwnd syscall.Handle, msgfiltermin uint32, msgfiltermax uint32) (ret int32, err error) {
+func _GetMessage(msg *w32.MSG, hwnd syscall.Handle, msgfiltermin uint32, msgfiltermax uint32) (ret int32, err error) {
 	r0, _, e1 := syscall.Syscall6(procGetMessageW.Addr(), 4, uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(msgfiltermin), uintptr(msgfiltermax), 0, 0)
 	ret = int32(r0)
 	if ret == -1 {
@@ -164,25 +142,25 @@ func _GetMessage(msg *_MSG, hwnd syscall.Handle, msgfiltermin uint32, msgfilterm
 	return
 }
 
-func _LoadCursor(hInstance syscall.Handle, cursorName uintptr) (cursor syscall.Handle, err error) {
+func _LoadCursor(hInstance syscall.Handle, cursorName uintptr) (cursor w32.HCURSOR, err error) {
 	r0, _, e1 := syscall.Syscall(procLoadCursorW.Addr(), 2, uintptr(hInstance), uintptr(cursorName), 0)
-	cursor = syscall.Handle(r0)
+	cursor = w32.HCURSOR(r0)
 	if cursor == 0 {
 		err = errnoErr(e1)
 	}
 	return
 }
 
-func _LoadIcon(hInstance syscall.Handle, iconName uintptr) (icon syscall.Handle, err error) {
+func _LoadIcon(hInstance w32.HINSTANCE, iconName uintptr) (icon w32.HICON, err error) {
 	r0, _, e1 := syscall.Syscall(procLoadIconW.Addr(), 2, uintptr(hInstance), uintptr(iconName), 0)
-	icon = syscall.Handle(r0)
+	icon = w32.HICON(r0)
 	if icon == 0 {
 		err = errnoErr(e1)
 	}
 	return
 }
 
-func _MoveWindow(hwnd syscall.Handle, x int32, y int32, w int32, h int32, repaint bool) (err error) {
+func _MoveWindow(hwnd w32.HWND, x int32, y int32, w int32, h int32, repaint bool) (err error) {
 	var _p0 uint32
 	if repaint {
 		_p0 = 1
@@ -193,31 +171,6 @@ func _MoveWindow(hwnd syscall.Handle, x int32, y int32, w int32, h int32, repain
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
-	return
-}
-
-func _SetWindowPos(hwnd syscall.Handle, hwndInsertAfter syscall.Handle, x, y, cx, cy int32, uFlags int32) (err error) {
-	r1, _, e1 := syscall.Syscall9(
-		procSetWindowPos.Addr(), 7,
-		uintptr(hwnd),
-		uintptr(hwndInsertAfter),
-		uintptr(x),
-		uintptr(y),
-		uintptr(cx),
-		uintptr(cy),
-		uintptr(uFlags),
-		0,
-		0,
-	)
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func _PostMessage(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult bool) {
-	r0, _, _ := syscall.Syscall6(procPostMessageW.Addr(), 4, uintptr(hwnd), uintptr(uMsg), uintptr(wParam), uintptr(lParam), 0, 0)
-	lResult = r0 != 0
 	return
 }
 
@@ -235,26 +188,8 @@ func _RegisterClass(wc *_WNDCLASS) (atom uint16, err error) {
 	return
 }
 
-func _ShowWindow(hwnd syscall.Handle, cmdshow int32) (wasvisible bool) {
-	r0, _, _ := syscall.Syscall(procShowWindow.Addr(), 2, uintptr(hwnd), uintptr(cmdshow), 0)
-	wasvisible = r0 != 0
-	return
-}
-
-func _ScreenToClient(hwnd syscall.Handle, lpPoint *_POINT) (ok bool) {
-	r0, _, _ := syscall.Syscall(procScreenToClient.Addr(), 2, uintptr(hwnd), uintptr(unsafe.Pointer(lpPoint)), 0)
-	ok = r0 != 0
-	return
-}
-
 func _ToUnicodeEx(wVirtKey uint32, wScanCode uint32, lpKeyState *byte, pwszBuff *uint16, cchBuff int32, wFlags uint32, dwhkl syscall.Handle) (ret int32) {
 	r0, _, _ := syscall.Syscall9(procToUnicodeEx.Addr(), 7, uintptr(wVirtKey), uintptr(wScanCode), uintptr(unsafe.Pointer(lpKeyState)), uintptr(unsafe.Pointer(pwszBuff)), uintptr(cchBuff), uintptr(wFlags), uintptr(dwhkl), 0, 0)
 	ret = int32(r0)
-	return
-}
-
-func _TranslateMessage(msg *_MSG) (done bool) {
-	r0, _, _ := syscall.Syscall(procTranslateMessage.Addr(), 1, uintptr(unsafe.Pointer(msg)), 0, 0)
-	done = r0 != 0
 	return
 }

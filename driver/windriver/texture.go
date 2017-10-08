@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/AllenDang/w32"
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
 )
@@ -50,7 +51,7 @@ func newTexture(size image.Point) (screen.Texture, error) {
 	}, nil
 }
 
-func handleCreateTexture(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) {
+func handleCreateTexture(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) {
 	// This code needs to run on Windows message pump thread.
 	// Firstly, it calls GetDC(nil) and, according to Windows documentation
 	// (https://msdn.microsoft.com/en-us/library/windows/desktop/dd144871(v=vs.85).aspx),

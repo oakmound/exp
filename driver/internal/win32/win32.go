@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/AllenDang/w32"
 	"github.com/oakmound/shiny/screen"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"
@@ -31,7 +32,7 @@ import (
 // in an actual Windows window so they all run on the main thread.
 // Since any messages sent to a window will be executed on the
 // main thread, we can safely use the messages below.
-var screenHWND syscall.Handle
+var screenHWND w32.HWND
 
 const (
 	msgCreateWindow = _WM_USER + iota
@@ -61,7 +62,7 @@ func (m *userWM) next() uint32 {
 
 var currentUserWM userWM
 
-func newWindow(opts *screen.NewWindowOptions) (syscall.Handle, error) {
+func newWindow(opts *screen.NewWindowOptions) (w32.HWND, error) {
 	// TODO(brainman): convert windowClass to *uint16 once (in initWindowClass)
 	wcname, err := syscall.UTF16PtrFromString(windowClass)
 	if err != nil {
@@ -73,21 +74,28 @@ func newWindow(opts *screen.NewWindowOptions) (syscall.Handle, error) {
 	}
 	hwnd, err := _CreateWindowEx(0,
 		wcname, title,
-		WS_OVERLAPPEDWINDOW,
+		windowStyle,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		0, 0, hThisInstance, 0)
 	if err != nil {
 		return 0, err
 	}
+
+	// This is interesting and we'll use it eventually
+	//w32.SetWindowLongPtr(hwnd, w32.GWL_STYLE, WS_BORDER)
 	// TODO(andlabs): use proper nCmdShow
 	// TODO(andlabs): call UpdateWindow()
 
 	return hwnd, nil
 }
 
+func SetFullScreen(hwnd w32.HWND) {
+	w32.SetWindowPos(hwnd, w32.HWND_TOP, 0, 0, w32.GetSystemMetrics(w32.SM_CXSCREEN), w32.GetSystemMetrics(w32.SM_CYSCREEN), w32.SWP_FRAMECHANGED)
+}
+
 // ResizeClientRect makes hwnd client rectangle opts.Width by opts.Height in size.
-func ResizeClientRect(hwnd syscall.Handle, opts *screen.NewWindowOptions) error {
+func ResizeClientRect(hwnd w32.HWND, opts *screen.NewWindowOptions) error {
 	if opts == nil || opts.Width <= 0 || opts.Height <= 0 {
 		return errors.New("Invalid inputs to ResizeClientRect")
 	}
@@ -112,18 +120,18 @@ func ResizeClientRect(hwnd syscall.Handle, opts *screen.NewWindowOptions) error 
 // This is a separate step from NewWindow to give the driver a chance
 // to setup its internal state for a window before events start being
 // delivered.
-func Show(hwnd syscall.Handle) {
-	SendMessage(hwnd, msgShow, 0, 0)
+func Show(hwnd w32.HWND) {
+	w32.SendMessage(hwnd, msgShow, 0, 0)
 }
 
-func Release(hwnd syscall.Handle) {
+func Release(hwnd w32.HWND) {
 	// TODO(andlabs): check for errors from this?
 	// TODO(andlabs): remove unsafe
-	_DestroyWindow(hwnd)
+	w32.DestroyWindow(hwnd)
 	// TODO(andlabs): what happens if we're still painting?
 }
 
-func sendFocus(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendFocus(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	switch uMsg {
 	case _WM_SETFOCUS:
 		LifecycleEvent(hwnd, lifecycle.StageFocused)
@@ -135,14 +143,14 @@ func sendFocus(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResul
 	return _DefWindowProc(hwnd, uMsg, wParam, lParam)
 }
 
-func sendShow(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendShow(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	LifecycleEvent(hwnd, lifecycle.StageVisible)
-	_ShowWindow(hwnd, _SW_SHOWDEFAULT)
+	w32.ShowWindow(hwnd, _SW_SHOWDEFAULT)
 	sendSize(hwnd)
 	return 0
 }
 
-func sendSizeEvent(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendSizeEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	wp := (*_WINDOWPOS)(unsafe.Pointer(lParam))
 	if wp.Flags&_SWP_NOSIZE != 0 {
 		return 0
@@ -151,7 +159,7 @@ func sendSizeEvent(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lR
 	return 0
 }
 
-func sendSize(hwnd syscall.Handle) {
+func sendSize(hwnd w32.HWND) {
 	var r _RECT
 	if err := _GetClientRect(hwnd, &r); err != nil {
 		panic(err) // TODO(andlabs)
@@ -170,12 +178,12 @@ func sendSize(hwnd syscall.Handle) {
 	})
 }
 
-func sendClose(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendClose(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	LifecycleEvent(hwnd, lifecycle.StageDead)
 	return 0
 }
 
-func sendMouseEvent(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendMouseEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	e := mouse.Event{
 		X:         float32(_GET_X_LPARAM(lParam)),
 		Y:         float32(_GET_Y_LPARAM(lParam)),
@@ -195,14 +203,9 @@ func sendMouseEvent(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (l
 		// DirNone?
 		e.Direction = mouse.DirStep
 
-		// Convert from screen to window coordinates.
-		p := _POINT{
-			int32(e.X),
-			int32(e.Y),
-		}
-		_ScreenToClient(hwnd, &p)
-		e.X = float32(p.X)
-		e.Y = float32(p.Y)
+		x, y, _ := w32.ScreenToClient(hwnd, int(e.X), int(e.Y))
+		e.X = float32(x)
+		e.Y = float32(y)
 	default:
 		panic("sendMouseEvent() called on non-mouse message")
 	}
@@ -263,26 +266,26 @@ func keyModifiers() (m key.Modifiers) {
 }
 
 var (
-	MouseEvent     func(hwnd syscall.Handle, e mouse.Event)
-	PaintEvent     func(hwnd syscall.Handle, e paint.Event)
-	SizeEvent      func(hwnd syscall.Handle, e size.Event)
-	KeyEvent       func(hwnd syscall.Handle, e key.Event)
-	LifecycleEvent func(hwnd syscall.Handle, e lifecycle.Stage)
+	MouseEvent     func(hwnd w32.HWND, e mouse.Event)
+	PaintEvent     func(hwnd w32.HWND, e paint.Event)
+	SizeEvent      func(hwnd w32.HWND, e size.Event)
+	KeyEvent       func(hwnd w32.HWND, e key.Event)
+	LifecycleEvent func(hwnd w32.HWND, e lifecycle.Stage)
 
 	// TODO: use the golang.org/x/exp/shiny/driver/internal/lifecycler package
 	// instead of or together with the LifecycleEvent callback?
 )
 
-func sendPaint(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendPaint(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	PaintEvent(hwnd, paint.Event{})
 	return _DefWindowProc(hwnd, uMsg, wParam, lParam)
 }
 
-var screenMsgs = map[uint32]func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){}
+var screenMsgs = map[uint32]func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){}
 
-func AddScreenMsg(fn func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr)) uint32 {
+func AddScreenMsg(fn func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
 	uMsg := currentUserWM.next()
-	screenMsgs[uMsg] = func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) uintptr {
+	screenMsgs[uMsg] = func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
 		fn(hwnd, uMsg, wParam, lParam)
 		return 0
 	}
@@ -293,7 +296,7 @@ var (
 	windowInit = sync.Once{}
 )
 
-func screenWindowWndProc(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
+func screenWindowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	switch uMsg {
 	case msgCreateWindow:
 		p := (*newWindowParams)(unsafe.Pointer(lParam))
@@ -318,10 +321,10 @@ func screenWindowWndProc(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lPara
 //go:uintptrescapes
 
 func SendScreenMessage(uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
-	return SendMessage(screenHWND, uMsg, wParam, lParam)
+	return w32.SendMessage(screenHWND, uMsg, wParam, lParam)
 }
 
-var windowMsgs = map[uint32]func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){
+var windowMsgs = map[uint32]func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){
 	_WM_SETFOCUS:         sendFocus,
 	_WM_KILLFOCUS:        sendFocus,
 	_WM_PAINT:            sendPaint,
@@ -343,16 +346,16 @@ var windowMsgs = map[uint32]func(hwnd syscall.Handle, uMsg uint32, wParam, lPara
 	// TODO case _WM_SYSKEYDOWN, _WM_SYSKEYUP:
 }
 
-func AddWindowMsg(fn func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr)) uint32 {
+func AddWindowMsg(fn func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
 	uMsg := currentUserWM.next()
-	windowMsgs[uMsg] = func(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) uintptr {
+	windowMsgs[uMsg] = func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
 		fn(hwnd, uMsg, wParam, lParam)
 		return 0
 	}
 	return uMsg
 }
 
-func windowWndProc(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
+func windowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	fn := windowMsgs[uMsg]
 	if fn != nil {
 		return fn(hwnd, uMsg, wParam, lParam)
@@ -362,11 +365,11 @@ func windowWndProc(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uint
 
 type newWindowParams struct {
 	opts *screen.NewWindowOptions
-	w    syscall.Handle
+	w    w32.HWND
 	err  error
 }
 
-func NewWindow(opts *screen.NewWindowOptions) (syscall.Handle, error) {
+func NewWindow(opts *screen.NewWindowOptions) (w32.HWND, error) {
 	var p newWindowParams
 	p.opts = opts
 	SendScreenMessage(msgCreateWindow, 0, uintptr(unsafe.Pointer(&p)))
@@ -386,8 +389,7 @@ func initWindowClass() (err error) {
 		HIcon:         hDefaultIcon,
 		HCursor:       hDefaultCursor,
 		HInstance:     hThisInstance,
-		// TODO(andlabs): change this to something else? NULL? the hollow brush?
-		HbrBackground: syscall.Handle(_COLOR_BTNFACE + 1),
+		HbrBackground: w32.COLOR_BTNSHADOW,
 	})
 	return err
 }
@@ -408,7 +410,7 @@ func initScreenWindow() (err error) {
 		HIcon:         hDefaultIcon,
 		HCursor:       hDefaultCursor,
 		HInstance:     hThisInstance,
-		HbrBackground: syscall.Handle(_COLOR_BTNFACE + 1),
+		HbrBackground: w32.HWND(w32.COLOR_BTNSHADOW),
 	}
 	_, err = _RegisterClass(&wc)
 	if err != nil {
@@ -416,10 +418,10 @@ func initScreenWindow() (err error) {
 	}
 	screenHWND, err = _CreateWindowEx(0,
 		swc, emptyString,
-		WS_OVERLAPPEDWINDOW,
+		windowStyle,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
-		_HWND_MESSAGE, 0, hThisInstance, 0)
+		w32.HWND_MESSAGE, 0, hThisInstance, 0)
 	if err != nil {
 		return err
 	}
@@ -427,28 +429,26 @@ func initScreenWindow() (err error) {
 }
 
 var (
-	hDefaultIcon   syscall.Handle
-	hDefaultCursor syscall.Handle
-	hThisInstance  syscall.Handle
+	windowStyle uint32 = WS_OVERLAPPEDWINDOW
+)
+
+var (
+	hDefaultIcon   w32.HICON
+	hDefaultCursor w32.HCURSOR
+	hThisInstance  w32.HINSTANCE
 )
 
 func initCommon() (err error) {
-	hDefaultIcon, err = _LoadIcon(0, _IDI_APPLICATION)
+	hDefaultIcon, err = _LoadIcon(0, w32.IDI_APPLICATION)
 	if err != nil {
 		return err
 	}
-	hDefaultCursor, err = _LoadCursor(0, _IDC_ARROW)
+	hDefaultCursor, err = _LoadCursor(0, w32.IDC_ARROW)
 	if err != nil {
 		return err
 	}
 	// TODO(andlabs) hThisInstance
 	return nil
-}
-
-//go:uintptrescapes
-
-func SendMessage(hwnd syscall.Handle, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
-	return sendMessage(hwnd, uMsg, wParam, lParam)
 }
 
 // Todo: this (and other globals) forces this package to only be able to run one window.
@@ -471,7 +471,7 @@ func Main(f func()) (retErr error) {
 	}
 	defer func() {
 		// TODO(andlabs): log an error if this fails?
-		_DestroyWindow(screenHWND)
+		w32.DestroyWindow(screenHWND)
 		// TODO(andlabs): unregister window class
 	}()
 
@@ -481,10 +481,10 @@ func Main(f func()) (retErr error) {
 
 	// Prime the pump.
 	mainCallback = f
-	_PostMessage(screenHWND, msgMainCallback, 0, 0)
+	w32.PostMessage(screenHWND, msgMainCallback, 0, 0)
 
 	// Main message pump.
-	var m _MSG
+	var m w32.MSG
 	for {
 		done, err := _GetMessage(&m, 0, 0, 0)
 		if err != nil {
@@ -493,8 +493,8 @@ func Main(f func()) (retErr error) {
 		if done == 0 { // WM_QUIT
 			break
 		}
-		_TranslateMessage(&m)
-		_DispatchMessage(&m)
+		w32.TranslateMessage(&m)
+		w32.DispatchMessage(&m)
 	}
 
 	return nil

@@ -8,9 +8,9 @@ package win32
 
 import (
 	"fmt"
-	"syscall"
 	"unicode/utf16"
 
+	"github.com/AllenDang/w32"
 	"golang.org/x/mobile/event/key"
 )
 
@@ -325,7 +325,7 @@ func readRune(vKey uint32, scanCode uint8) rune {
 	return utf16.Decode(buf[:ret])[0]
 }
 
-func sendKeyEvent(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendKeyEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	e := key.Event{
 		Rune:      readRune(uint32(wParam), uint8(lParam>>16)),
 		Code:      convVirtualKeyCode(uint32(wParam)),

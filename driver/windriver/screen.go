@@ -10,20 +10,20 @@ import (
 	"fmt"
 	"image"
 	"sync"
-	"syscall"
 	"unsafe"
 
+	"github.com/AllenDang/w32"
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
 )
 
 var theScreen = &screenImpl{
-	windows: make(map[syscall.Handle]*windowImpl),
+	windows: make(map[w32.HWND]*windowImpl),
 }
 
 type screenImpl struct {
 	mu      sync.Mutex
-	windows map[syscall.Handle]*windowImpl
+	windows map[w32.HWND]*windowImpl
 }
 
 func (*screenImpl) NewImage(size image.Point) (screen.Image, error) {

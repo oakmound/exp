@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/AllenDang/w32"
 	"github.com/oakmound/shiny/driver/internal/drawer"
 	"github.com/oakmound/shiny/driver/internal/event"
 	"github.com/oakmound/shiny/driver/internal/win32"
@@ -30,7 +31,7 @@ import (
 )
 
 type windowImpl struct {
-	hwnd syscall.Handle
+	hwnd w32.HWND
 
 	event.Deque
 
@@ -39,7 +40,7 @@ type windowImpl struct {
 }
 
 func (w *windowImpl) Release() {
-	win32.Release(w.hwnd)
+	win32.Release(w32.HWND(w.hwnd))
 }
 
 func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
@@ -89,6 +90,10 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 		sr:      sr,
 		op:      op,
 	})
+}
+
+func (w *windowImpl) SetFullScreen() {
+	win32.SetFullScreen(w.hwnd)
 }
 
 func drawWindow(dc syscall.Handle, src2dst f64.Aff3, src interface{}, sr image.Rectangle, op draw.Op) (retErr error) {
@@ -171,23 +176,23 @@ func (w *windowImpl) Publish() screen.PublishResult {
 }
 
 func init() {
-	send := func(hwnd syscall.Handle, e interface{}) {
+	send := func(hwnd w32.HWND, e interface{}) {
 		theScreen.mu.Lock()
-		w := theScreen.windows[hwnd]
+		w := theScreen.windows[w32.HWND(hwnd)]
 		theScreen.mu.Unlock()
 
 		w.Send(e)
 	}
-	win32.MouseEvent = func(hwnd syscall.Handle, e mouse.Event) { send(hwnd, e) }
-	win32.PaintEvent = func(hwnd syscall.Handle, e paint.Event) { send(hwnd, e) }
-	win32.KeyEvent = func(hwnd syscall.Handle, e key.Event) { send(hwnd, e) }
+	win32.MouseEvent = func(hwnd w32.HWND, e mouse.Event) { send(hwnd, e) }
+	win32.PaintEvent = func(hwnd w32.HWND, e paint.Event) { send(hwnd, e) }
+	win32.KeyEvent = func(hwnd w32.HWND, e key.Event) { send(hwnd, e) }
 	win32.LifecycleEvent = lifecycleEvent
 	win32.SizeEvent = sizeEvent
 }
 
-func lifecycleEvent(hwnd syscall.Handle, to lifecycle.Stage) {
+func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
 	theScreen.mu.Lock()
-	w := theScreen.windows[hwnd]
+	w := theScreen.windows[w32.HWND(hwnd)]
 	theScreen.mu.Unlock()
 
 	if w.lifecycleStage == to {
@@ -200,9 +205,9 @@ func lifecycleEvent(hwnd syscall.Handle, to lifecycle.Stage) {
 	w.lifecycleStage = to
 }
 
-func sizeEvent(hwnd syscall.Handle, e size.Event) {
+func sizeEvent(hwnd w32.HWND, e size.Event) {
 	theScreen.mu.Lock()
-	w := theScreen.windows[hwnd]
+	w := theScreen.windows[w32.HWND(hwnd)]
 	theScreen.mu.Unlock()
 
 	w.Send(e)
@@ -239,13 +244,13 @@ const (
 var msgCmd = win32.AddWindowMsg(handleCmd)
 
 func (w *windowImpl) execCmd(c *cmd) {
-	win32.SendMessage(w.hwnd, msgCmd, 0, uintptr(unsafe.Pointer(c)))
+	w32.SendMessage(w32.HWND(w.hwnd), msgCmd, 0, uintptr(unsafe.Pointer(c)))
 	if c.err != nil {
 		panic(fmt.Sprintf("execCmd faild for cmd.id=%d: %v", c.id, c.err)) // TODO handle errors
 	}
 }
 
-func handleCmd(hwnd syscall.Handle, uMsg uint32, wParam, lParam uintptr) {
+func handleCmd(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) {
 	c := (*cmd)(unsafe.Pointer(lParam))
 
 	dc, err := win32.GetDC(hwnd)
