@@ -83,7 +83,7 @@ func newWindow(opts *screen.NewWindowOptions) (w32.HWND, error) {
 	}
 
 	// This is interesting and we'll use it eventually
-	//w32.SetWindowLongPtr(hwnd, w32.GWL_STYLE, WS_BORDER)
+	w32.SetWindowLongPtr(hwnd, w32.GWL_STYLE, 0)
 	// TODO(andlabs): use proper nCmdShow
 	// TODO(andlabs): call UpdateWindow()
 
