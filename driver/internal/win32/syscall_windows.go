@@ -7,7 +7,7 @@ package win32
 import (
 	"syscall"
 
-	"github.com/AllenDang/w32"
+	"github.com/oakmound/w32"
 )
 
 type _COLORREF uint32

@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/AllenDang/w32"
+	"github.com/oakmound/w32"
 	"github.com/oakmound/shiny/screen"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"

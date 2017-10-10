@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"unicode/utf16"
 
-	"github.com/AllenDang/w32"
+	"github.com/oakmound/w32"
 	"golang.org/x/mobile/event/key"
 )
 

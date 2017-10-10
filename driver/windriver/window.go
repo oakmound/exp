@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/AllenDang/w32"
+	"github.com/oakmound/w32"
 	"github.com/oakmound/shiny/driver/internal/drawer"
 	"github.com/oakmound/shiny/driver/internal/event"
 	"github.com/oakmound/shiny/driver/internal/win32"

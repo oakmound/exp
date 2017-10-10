@@ -4,7 +4,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/AllenDang/w32"
+	"github.com/oakmound/w32"
 	"golang.org/x/sys/windows"
 )
 
