@@ -406,7 +406,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	w.lifecycler.SendEvent(w, nil)
 
 	xproto.CreateWindow(s.xc, s.xsi.RootDepth, xw, s.xsi.Root,
-		0, 0, uint16(width), uint16(height), 0,
+		int16(opts.X), int16(opts.Y), uint16(width), uint16(height), 0,
 		xproto.WindowClassInputOutput, s.xsi.RootVisual,
 		xproto.CwEventMask,
 		[]uint32{0 |
