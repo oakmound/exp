@@ -52,7 +52,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
-func newWindow(opts *screen.NewWindowOptions) (uintptr, error) {
+func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	width, height := optsSize(opts)
 
 	title := opts.GetTitle()

@@ -216,7 +216,7 @@ func (w *windowImpl) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
 	), src, op)
 }
 
-func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
+func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op) {
 	minX := float64(sr.Min.X)
 	minY := float64(sr.Min.Y)
 	maxX := float64(sr.Max.X)
@@ -231,7 +231,7 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 	), src, op)
 }
 
-func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
+func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectangle, op draw.Op) {
 	t := src.(*textureImpl)
 	sr = sr.Intersect(t.Bounds())
 	if sr.Empty() {
@@ -316,12 +316,12 @@ func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectang
 	w.glctx.DisableVertexAttribArray(w.s.texture.inUV)
 }
 
-func (w *windowImpl) Copy(dp image.Point, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	drawer.Copy(w, dp, src, sr, op, opts)
+func (w *windowImpl) Copy(dp image.Point, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	drawer.Copy(w, dp, src, sr, op)
 }
 
-func (w *windowImpl) Scale(dr image.Rectangle, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	drawer.Scale(w, dr, src, sr, op, opts)
+func (w *windowImpl) Scale(dr image.Rectangle, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	drawer.Scale(w, dr, src, sr, op)
 }
 
 func (w *windowImpl) mvp(tlx, tly, trx, try, blx, bly float64) f64.Aff3 {

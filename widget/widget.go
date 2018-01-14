@@ -45,7 +45,7 @@ func WithLayoutData(n node.Node, layoutData interface{}) node.Node {
 
 // RunWindowOptions are optional arguments to RunWindow.
 type RunWindowOptions struct {
-	NewWindowOptions screen.NewWindowOptions
+	NewWindowOptions screen.WindowGenerator
 	Theme            theme.Theme
 
 	// TODO: some mechanism to process, filter and inject events. Perhaps a
