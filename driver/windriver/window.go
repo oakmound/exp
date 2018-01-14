@@ -17,11 +17,11 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/oakmound/w32"
 	"github.com/oakmound/shiny/driver/internal/drawer"
 	"github.com/oakmound/shiny/driver/internal/event"
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/w32"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"
@@ -64,7 +64,7 @@ func (w *windowImpl) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
 	})
 }
 
-func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
+func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectangle, op draw.Op) {
 	if op != draw.Src && op != draw.Over {
 		// TODO:
 		return
@@ -78,7 +78,7 @@ func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectang
 	})
 }
 
-func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
+func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op) {
 	if op != draw.Src && op != draw.Over {
 		// TODO:
 		return
@@ -162,12 +162,12 @@ func drawWindow(dc syscall.Handle, src2dst f64.Aff3, src interface{}, sr image.R
 	return fmt.Errorf("unsupported type %T", src)
 }
 
-func (w *windowImpl) Copy(dp image.Point, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	drawer.Copy(w, dp, src, sr, op, opts)
+func (w *windowImpl) Copy(dp image.Point, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	drawer.Copy(w, dp, src, sr, op)
 }
 
-func (w *windowImpl) Scale(dr image.Rectangle, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	drawer.Scale(w, dr, src, sr, op, opts)
+func (w *windowImpl) Scale(dr image.Rectangle, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	drawer.Scale(w, dr, src, sr, op)
 }
 
 func (w *windowImpl) Publish() screen.PublishResult {

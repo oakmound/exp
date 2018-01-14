@@ -360,15 +360,13 @@ func (s *screenImpl) NewTexture(size image.Point) (screen.Texture, error) {
 	}, nil
 }
 
-func (s *screenImpl) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) {
+func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, error) {
 	width, height := 1024, 768
-	if opts != nil {
-		if opts.Width > 0 {
-			width = opts.Width
-		}
-		if opts.Height > 0 {
-			height = opts.Height
-		}
+	if opts.Width > 0 {
+		width = opts.Width
+	}
+	if opts.Height > 0 {
+		height = opts.Height
 	}
 
 	xw, err := xproto.NewWindowId(s.xc)
@@ -424,7 +422,7 @@ func (s *screenImpl) NewWindow(opts *screen.NewWindowOptions) (screen.Window, er
 	)
 	s.setProperty(xw, s.atomWMProtocols, s.atomWMDeleteWindow, s.atomWMTakeFocus)
 
-	title := []byte(opts.GetTitle())
+	title := []byte(opts.Title)
 	xproto.ChangeProperty(s.xc, xproto.PropModeReplace, xw, s.atomNETWMName, s.atomUTF8String, 8, uint32(len(title)), title)
 
 	xproto.CreateGC(s.xc, xg, xproto.Drawable(xw), 0, nil)
@@ -585,12 +583,12 @@ func (s *screenImpl) setProperty(xw xproto.Window, prop xproto.Atom, values ...x
 	xproto.ChangeProperty(s.xc, xproto.PropModeReplace, xw, prop, xproto.AtomAtom, 32, uint32(len(values)), b)
 }
 
-func (s *screenImpl) drawUniform(xp render.Picture, src2dst *f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
+func (s *screenImpl) drawUniform(xp render.Picture, src2dst *f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op) {
 	if sr.Empty() {
 		return
 	}
 
-	if opts == nil && *src2dst == (f64.Aff3{1, 0, 0, 0, 1, 0}) {
+	if *src2dst == (f64.Aff3{1, 0, 0, 0, 1, 0}) {
 		fill(s.xc, xp, sr, src, op)
 		return
 	}

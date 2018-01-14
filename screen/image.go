@@ -15,19 +15,14 @@ import "image"
 // When specifying a sub-Image via Upload, a Image's top-left pixel is always
 // (0, 0) in its own coordinate space.
 type Image interface {
+	Spanner
+
 	// Release releases the Image's resources, after all pending uploads and
 	// draws resolve.
 	//
 	// The behavior of the Image after Release, whether calling its methods or
 	// passing it as an argument, is undefined.
 	Release()
-
-	// Size returns the size of the Image's image.
-	Size() image.Point
-
-	// Bounds returns the bounds of the Image's image. It is equal to
-	// image.Rectangle{Max: i.Size()}.
-	Bounds() image.Rectangle
 
 	// RGBA returns the pixel buffer as an *image.RGBA.
 	//

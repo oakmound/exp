@@ -21,5 +21,5 @@ type stub struct {
 }
 
 func (s stub) NewImage(size image.Point) (screen.Image, error)              { return nil, s.err }
-func (s stub) NewTexture(size image.Point) (screen.Texture, error)            { return nil, s.err }
-func (s stub) NewWindow(opts *screen.NewWindowOptions) (screen.Window, error) { return nil, s.err }
+func (s stub) NewTexture(size image.Point) (screen.Texture, error)          { return nil, s.err }
+func (s stub) NewWindow(opts screen.WindowGenerator) (screen.Window, error) { return nil, s.err }

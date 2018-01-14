@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/oakmound/w32"
 	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/w32"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"
 	"golang.org/x/mobile/event/mouse"
@@ -62,13 +62,13 @@ func (m *userWM) next() uint32 {
 
 var currentUserWM userWM
 
-func newWindow(opts *screen.NewWindowOptions) (w32.HWND, error) {
+func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	// TODO(brainman): convert windowClass to *uint16 once (in initWindowClass)
 	wcname, err := syscall.UTF16PtrFromString(windowClass)
 	if err != nil {
 		return 0, err
 	}
-	title, err := syscall.UTF16PtrFromString(opts.GetTitle())
+	title, err := syscall.UTF16PtrFromString(opts.Title)
 	if err != nil {
 		return 0, err
 	}
@@ -83,7 +83,7 @@ func newWindow(opts *screen.NewWindowOptions) (w32.HWND, error) {
 	}
 
 	// This is interesting and we'll use it eventually
-	w32.SetWindowLongPtr(hwnd, w32.GWL_STYLE, 0)
+	//w32.SetWindowLongPtr(hwnd, w32.GWL_STYLE, 0)
 	// TODO(andlabs): use proper nCmdShow
 	// TODO(andlabs): call UpdateWindow()
 
@@ -95,8 +95,8 @@ func SetFullScreen(hwnd w32.HWND) {
 }
 
 // ResizeClientRect makes hwnd client rectangle opts.Width by opts.Height in size.
-func ResizeClientRect(hwnd w32.HWND, opts *screen.NewWindowOptions) error {
-	if opts == nil || opts.Width <= 0 || opts.Height <= 0 {
+func ResizeClientRect(hwnd w32.HWND, opts screen.WindowGenerator) error {
+	if opts.Width <= 0 || opts.Height <= 0 {
 		return errors.New("Invalid inputs to ResizeClientRect")
 	}
 	var cr, wr _RECT
@@ -364,12 +364,12 @@ func windowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (
 }
 
 type newWindowParams struct {
-	opts *screen.NewWindowOptions
+	opts screen.WindowGenerator
 	w    w32.HWND
 	err  error
 }
 
-func NewWindow(opts *screen.NewWindowOptions) (w32.HWND, error) {
+func NewWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	var p newWindowParams
 	p.opts = opts
 	SendScreenMessage(msgCreateWindow, 0, uintptr(unsafe.Pointer(&p)))

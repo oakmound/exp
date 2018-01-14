@@ -74,20 +74,20 @@ func (w *windowImpl) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
 	fill(w.s.xc, w.xp, dr, src, op)
 }
 
-func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	w.s.drawUniform(w.xp, &src2dst, src, sr, op, opts)
+func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op) {
+	w.s.drawUniform(w.xp, &src2dst, src, sr, op)
 }
 
-func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	src.(*textureImpl).draw(w.xp, &src2dst, sr, op, opts)
+func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	src.(*textureImpl).draw(w.xp, &src2dst, sr, op)
 }
 
-func (w *windowImpl) Copy(dp image.Point, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	drawer.Copy(w, dp, src, sr, op, opts)
+func (w *windowImpl) Copy(dp image.Point, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	drawer.Copy(w, dp, src, sr, op)
 }
 
-func (w *windowImpl) Scale(dr image.Rectangle, src screen.Texture, sr image.Rectangle, op draw.Op, opts *screen.DrawOptions) {
-	drawer.Scale(w, dr, src, sr, op, opts)
+func (w *windowImpl) Scale(dr image.Rectangle, src screen.Texture, sr image.Rectangle, op draw.Op) {
+	drawer.Scale(w, dr, src, sr, op)
 }
 
 func (w *windowImpl) Publish() screen.PublishResult {

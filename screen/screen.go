@@ -58,9 +58,6 @@ import (
 	"image"
 )
 
-// TODO: specify image format (Alpha or Gray, not just RGBA) for NewImage
-// and/or NewTexture?
-
 // Screen creates Images, Textures and Windows.
 type Screen interface {
 	// NewImage returns a new Image for this screen.
@@ -72,7 +69,7 @@ type Screen interface {
 	// NewWindow returns a new Window for this screen.
 	//
 	// A nil opts is valid and means to use the default option values.
-	NewWindow(opts *NewWindowOptions) (Window, error)
+	NewWindow(opts WindowGenerator) (Window, error)
 }
 
 // Window is a top-level, double-buffered GUI window.
@@ -84,8 +81,6 @@ type Window interface {
 	Release()
 
 	EventDeque
-
-	Uploader
 
 	Drawer
 

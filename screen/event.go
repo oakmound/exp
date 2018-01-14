@@ -23,9 +23,4 @@ type EventDeque interface {
 	// from the golang.org/x/mobile/event/... packages. Other packages may send
 	// events, of those types above or of other types, via Send or SendFirst.
 	NextEvent() interface{}
-
-	// TODO: LatestLifecycleEvent? Is that still worth it if the
-	// lifecycle.Event struct type loses its DrawContext field?
-
-	// TODO: LatestSizeEvent?
 }
