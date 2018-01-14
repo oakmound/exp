@@ -231,7 +231,7 @@ doCloseWindow(uintptr_t id) {
 }
 
 uintptr_t
-doNewWindow(int width, int height, char* title, int title_len) {
+doNewWindow(int x, int y, int width, int height, char* title, int title_len) {
 	XSetWindowAttributes attr;
 	attr.colormap = x_colormap;
 	attr.event_mask =
@@ -245,7 +245,7 @@ doNewWindow(int width, int height, char* title, int title_len) {
 		FocusChangeMask;
 
 	Window win = XCreateWindow(
-		x_dpy, x_root, 0, 0, width, height, 0, x_visual_info->depth, InputOutput,
+		x_dpy, x_root, x, y, width, height, 0, x_visual_info->depth, InputOutput,
 		x_visual_info->visual, CWColormap | CWEventMask, &attr);
 
 	XSizeHints sizehints;

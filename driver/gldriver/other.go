@@ -16,7 +16,7 @@ import (
 	"github.com/oakmound/shiny/screen"
 )
 
-func newWindow(opts *screen.NewWindowOptions) (uintptr, error) { return 0, nil }
+func newWindow(opts screen.WindowGenerator) (uintptr, error) { return 0, nil }
 
 func initWindow(id *windowImpl) {}
 func showWindow(id *windowImpl) {}

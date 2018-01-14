@@ -19,7 +19,7 @@ void processEvents();
 void makeCurrent(uintptr_t ctx);
 void swapBuffers(uintptr_t ctx);
 void doCloseWindow(uintptr_t id);
-uintptr_t doNewWindow(int width, int height, char* title, int title_len);
+uintptr_t doNewWindow(int x, int y, int width, int height, char* title, int title_len);
 uintptr_t doShowWindow(uintptr_t id);
 uintptr_t surfaceCreate();
 */
@@ -55,14 +55,14 @@ func init() {
 func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	width, height := optsSize(opts)
 
-	title := opts.GetTitle()
+	title := opts.Title
 	ctitle := C.CString(title)
 	defer C.free(unsafe.Pointer(ctitle))
 
 	retc := make(chan uintptr)
 	uic <- uiClosure{
 		f: func() uintptr {
-			return uintptr(C.doNewWindow(C.int(width), C.int(height), ctitle, C.int(len(title))))
+			return uintptr(C.doNewWindow(C.int(opts.X), c.int(opts.Y), C.int(width), C.int(height), ctitle, C.int(len(title))))
 		},
 		retc: retc,
 	}
