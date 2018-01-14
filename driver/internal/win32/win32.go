@@ -118,7 +118,7 @@ func ResizeClientRect(hwnd w32.HWND, opts screen.WindowGenerator) error {
 	if opts.Y != 0 {
 		y = opts.Y
 	}
-	return _MoveWindow(hwnd, x, y, w, h, false)
+	return MoveWindow(hwnd, x, y, w, h, false)
 }
 
 // Show shows a newly created window.

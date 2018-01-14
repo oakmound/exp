@@ -160,7 +160,7 @@ func _LoadIcon(hInstance w32.HINSTANCE, iconName uintptr) (icon w32.HICON, err e
 	return
 }
 
-func _MoveWindow(hwnd w32.HWND, x int32, y int32, w int32, h int32, repaint bool) (err error) {
+func MoveWindow(hwnd w32.HWND, x int32, y int32, w int32, h int32, repaint bool) (err error) {
 	var _p0 uint32
 	if repaint {
 		_p0 = 1
