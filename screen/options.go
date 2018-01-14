@@ -1,7 +1,5 @@
 package screen
 
-import "unicode/utf8"
-
 // Todo: flesh out options as a generator style constructor
 // with (optional) variadic arguments
 
@@ -25,7 +23,7 @@ type WindowGenerator struct {
 	// X and Y determine the location the new window should be created at. If
 	// either are zero, a driver-dependant default will be used for each zero
 	// value. If Fullscreen is true, these values will be ignored.
-	X, Y int
+	X, Y int32
 
 	// BorderStyle describes the presence of buttons, menus, and thickness of
 	// generated windows' borders.
@@ -57,6 +55,14 @@ func Dimensions(w, h int) WindowOption {
 	}
 }
 
+// Position sets the starting position of the new window
+func Position(x, y int32) WindowOption {
+	return func(g *WindowGenerator) {
+		g.X = x
+		g.Y = y
+	}
+}
+
 // NewWindowGenerator creates a window generator with zero values,
 // then calls all options passed in on it.
 func NewWindowGenerator(opts ...WindowOption) WindowGenerator {
@@ -65,20 +71,4 @@ func NewWindowGenerator(opts ...WindowOption) WindowGenerator {
 		o(wg)
 	}
 	return *wg
-}
-
-// todo: move this
-func sanitizeUTF8(s string, n int) string {
-	if n < len(s) {
-		s = s[:n]
-	}
-	i := 0
-	for i < len(s) {
-		r, n := utf8.DecodeRuneInString(s[i:])
-		if r == 0 || (r == utf8.RuneError && n == 1) {
-			break
-		}
-		i += n
-	}
-	return s[:i]
 }
