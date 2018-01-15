@@ -131,7 +131,7 @@ func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle
 	w.Draw(f64.Aff3{
 		1, 0, float64(dp.X),
 		0, 1, float64(dp.Y),
-	}, t, t.Bounds(), draw.Src, nil)
+	}, t, t.Bounds(), draw.Src)
 	t.Release()
 }
 

@@ -10,11 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"syscall"
 	"unsafe"
 
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/w32"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"
 	"golang.org/x/mobile/event/mouse"
@@ -68,7 +68,7 @@ type ctxWin32 struct {
 	surface uintptr // EGLSurface
 }
 
-func newWindow(opts *screen.NewWindowOptions) (uintptr, error) {
+func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	w, err := win32.NewWindow(opts)
 	if err != nil {
 		return 0, err
@@ -83,7 +83,7 @@ func initWindow(w *windowImpl) {
 func showWindow(w *windowImpl) {
 	// Show makes an initial call to sizeEvent (via win32.SizeEvent), where
 	// we setup the EGL surface and GL context.
-	win32.Show(syscall.Handle(w.id))
+	win32.Show(w32.HWND(w.id))
 }
 
 func closeWindow(id uintptr) {} // TODO
@@ -131,7 +131,7 @@ func init() {
 	win32.LifecycleEvent = lifecycleEvent
 }
 
-func lifecycleEvent(hwnd syscall.Handle, to lifecycle.Stage) {
+func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
 	theScreen.mu.Lock()
 	w := theScreen.windows[uintptr(hwnd)]
 	theScreen.mu.Unlock()
@@ -147,7 +147,7 @@ func lifecycleEvent(hwnd syscall.Handle, to lifecycle.Stage) {
 	w.lifecycleStage = to
 }
 
-func mouseEvent(hwnd syscall.Handle, e mouse.Event) {
+func mouseEvent(hwnd w32.HWND, e mouse.Event) {
 	theScreen.mu.Lock()
 	w := theScreen.windows[uintptr(hwnd)]
 	theScreen.mu.Unlock()
@@ -155,7 +155,7 @@ func mouseEvent(hwnd syscall.Handle, e mouse.Event) {
 	w.Send(e)
 }
 
-func keyEvent(hwnd syscall.Handle, e key.Event) {
+func keyEvent(hwnd w32.HWND, e key.Event) {
 	theScreen.mu.Lock()
 	w := theScreen.windows[uintptr(hwnd)]
 	theScreen.mu.Unlock()
@@ -163,7 +163,7 @@ func keyEvent(hwnd syscall.Handle, e key.Event) {
 	w.Send(e)
 }
 
-func paintEvent(hwnd syscall.Handle, e paint.Event) {
+func paintEvent(hwnd w32.HWND, e paint.Event) {
 	theScreen.mu.Lock()
 	w := theScreen.windows[uintptr(hwnd)]
 	theScreen.mu.Unlock()
@@ -178,7 +178,7 @@ func paintEvent(hwnd syscall.Handle, e paint.Event) {
 	w.Send(paint.Event{})
 }
 
-func sizeEvent(hwnd syscall.Handle, e size.Event) {
+func sizeEvent(hwnd w32.HWND, e size.Event) {
 	theScreen.mu.Lock()
 	w := theScreen.windows[uintptr(hwnd)]
 	theScreen.mu.Unlock()
@@ -232,7 +232,7 @@ func eglErr() error {
 	return nil
 }
 
-func createEGLSurface(hwnd syscall.Handle, w *windowImpl) error {
+func createEGLSurface(hwnd w32.HWND, w *windowImpl) error {
 	var displayAttribPlatforms = [][]eglInt{
 		// Default
 		{
