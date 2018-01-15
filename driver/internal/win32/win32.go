@@ -95,7 +95,7 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 // exStyle for a Windows window
 func WindowsStyle(border screen.BorderStyle) (uint32, uint32) {
 	// ignore input
-	return WS_OVERLAPPED, 0
+	return WS_OVERLAPPEDWINDOW, 0
 }
 
 // ResizeClientRect makes hwnd client rectangle opts.Width by opts.Height in size.
