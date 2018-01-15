@@ -66,6 +66,9 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 
 	var err error
 	w.hwnd, err = win32.NewWindow(opts)
+	style, exStyle := win32.WindowsStyle(opts.BorderStyle)
+	w.style = int32(style)
+	w.exStyle = int32(exStyle)
 	if err != nil {
 		return nil, err
 	}

@@ -37,6 +37,12 @@ type windowImpl struct {
 
 	sz             size.Event
 	lifecycleStage lifecycle.Stage
+	// Todo: the windows api is confused about
+	// whether styles are int32 or uint32s.
+	style, exStyle int32
+	fullscreen     bool
+	maximized      bool
+	windowRect     *w32.RECT
 }
 
 func (w *windowImpl) Release() {
@@ -80,7 +86,6 @@ func (w *windowImpl) Draw(src2dst f64.Aff3, src screen.Texture, sr image.Rectang
 
 func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rectangle, op draw.Op) {
 	if op != draw.Src && op != draw.Over {
-		// TODO:
 		return
 	}
 	w.execCmd(&cmd{
@@ -92,8 +97,63 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 	})
 }
 
-func (w *windowImpl) SetFullScreen() {
-	win32.SetFullScreen(w.hwnd)
+func (w *windowImpl) SetFullScreen(fullscreen bool) {
+	// Fullscreen impl copied from chromium
+	// https://src.chromium.org/viewvc/chrome/trunk/src/ui/views/win/fullscreen_handler.cc
+	// Save current window state if not already fullscreen.
+	if !w.fullscreen {
+		// Save current window information.  We force the window into restored mode
+		// before going fullscreen because Windows doesn't seem to hide the
+		// taskbar if the window is in the maximized state.
+		w.maximized = w32.IsZoomed(w.hwnd)
+		if w.maximized {
+			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_RESTORE, 0)
+		}
+		w.style = w32.GetWindowLong(w.hwnd, w32.GWL_STYLE)
+		w.exStyle = w32.GetWindowLong(w.hwnd, w32.GWL_EXSTYLE)
+		w.windowRect = w32.GetWindowRect(w.hwnd)
+	}
+
+	w.fullscreen = fullscreen
+
+	if w.fullscreen {
+		// Set new window style and size.
+		w32.SetWindowLong(w.hwnd, w32.GWL_STYLE,
+			w.style & ^(w32.WS_CAPTION|w32.WS_THICKFRAME))
+		w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE,
+			w.exStyle&^(w32.WS_EX_DLGMODALFRAME|
+				w32.WS_EX_WINDOWEDGE|w32.WS_EX_CLIENTEDGE|w32.WS_EX_STATICEDGE))
+		// On expand, if we're given a window_rect, grow to it, otherwise do
+		// not resize.
+		// shiny cmt: Need to look into what this for_metro argument means,
+		// right now we don't use it
+		// if (!for_metro) {
+		monitorInfo := w32.NewMonitorInfo()
+		w32.GetMonitorInfo(w32.MonitorFromWindow(w.hwnd, w32.MONITOR_DEFAULTTONEAREST),
+			&monitorInfo)
+		windowRect := monitorInfo.RcMonitor
+		w32.SetWindowPos(w.hwnd, 0, windowRect.Left, windowRect.Top,
+			windowRect.Right-windowRect.Left, windowRect.Bottom-windowRect.Top,
+			w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+		// }
+	} else {
+		// Reset original window style and size.  The multiple window size/moves
+		// here are ugly, but if SetWindowPos() doesn't redraw, the taskbar won't be
+		// repainted.  Better-looking methods welcome.
+		w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, w.style)
+		w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, w.exStyle)
+
+		// if !for_metro {
+		// On restore, resize to the previous saved rect size.
+		newRect := w.windowRect
+		w32.SetWindowPos(w.hwnd, 0, newRect.Left, newRect.Top,
+			newRect.Right-newRect.Left, newRect.Bottom-newRect.Top,
+			w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+		//}
+		if w.maximized {
+			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_MAXIMIZE, 0)
+		}
+	}
 }
 
 func (w *windowImpl) MoveWindow(x, y, wd, ht int32) {

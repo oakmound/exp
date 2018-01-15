@@ -254,6 +254,8 @@ const (
 	WS_EX_WINDOWEDGE = 0x00000100
 )
 
+// WM_SYSCOMMAND
+
 const (
 	_VK_SHIFT   = 16
 	_VK_CONTROL = 17

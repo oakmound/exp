@@ -72,9 +72,10 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	if err != nil {
 		return 0, err
 	}
-	hwnd, err := _CreateWindowEx(0,
+	style, exStyle := WindowsStyle(opts.BorderStyle)
+	hwnd, err := _CreateWindowEx(exStyle,
 		wcname, title,
-		windowStyle,
+		style,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		0, 0, hThisInstance, 0)
@@ -90,8 +91,11 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	return hwnd, nil
 }
 
-func SetFullScreen(hwnd w32.HWND) {
-	w32.SetWindowPos(hwnd, w32.HWND_TOP, 0, 0, w32.GetSystemMetrics(w32.SM_CXSCREEN), w32.GetSystemMetrics(w32.SM_CYSCREEN), w32.SWP_FRAMECHANGED)
+// WindowsStyle converts a screen.BorderStyle into a style and
+// exStyle for a Windows window
+func WindowsStyle(border screen.BorderStyle) (uint32, uint32) {
+	// ignore input
+	return WS_OVERLAPPED, 0
 }
 
 // ResizeClientRect makes hwnd client rectangle opts.Width by opts.Height in size.
