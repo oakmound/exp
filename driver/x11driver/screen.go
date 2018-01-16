@@ -405,8 +405,6 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 
 	w.lifecycler.SendEvent(w, nil)
 
-	fmt.Println("X11 window pos", opts.X, opts.Y)
-
 	cook := xproto.CreateWindowChecked(s.xc, s.xsi.RootDepth, xw, s.xsi.Root,
 		int16(opts.X), int16(opts.Y), uint16(width), uint16(height), 0,
 		xproto.WindowClassInputOutput, s.xsi.RootVisual,
