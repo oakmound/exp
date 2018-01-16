@@ -271,7 +271,7 @@ doConfigureWindow(uintptr_t id, int x, int y, int width, int height) {
 	unsigned int mask = CWX | CWY | CWWidth | CWHeight;
 	XWindowChanges values = {x,y,width,height,0,0,0}; 
 
-	XConfigureWindow(x_dpy, win, mask, values);
+	XConfigureWindow(x_dpy, win, mask, &values);
 }
 
 uintptr_t
