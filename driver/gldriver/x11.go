@@ -63,7 +63,7 @@ func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	retc := make(chan uintptr)
 	uic <- uiClosure{
 		f: func() uintptr {
-			return uintptr(C.doNewWindow(C.int(opts.X), c.int(opts.Y), C.int(width), C.int(height), ctitle, C.int(len(title))))
+			return uintptr(C.doNewWindow(C.int(opts.X), C.int(opts.Y), C.int(width), C.int(height), ctitle, C.int(len(title))))
 		},
 		retc: retc,
 	}
@@ -71,7 +71,8 @@ func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 }
 
 func moveWindow(w *windowImpl, opts screen.WindowGenerator) error {
-	C.doConfigureWindow(C.uintptr_t(w.id), C.int(opts.X), c.int(opts.Y), C.int(width), C.int(height))
+	width, height := optsSize(opts)
+	C.doConfigureWindow(C.uintptr_t(w.id), C.int(opts.X), C.int(opts.Y), C.int(width), C.int(height))
 	return nil
 }
 
