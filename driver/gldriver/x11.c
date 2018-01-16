@@ -265,6 +265,15 @@ doNewWindow(int x, int y, int width, int height, char* title, int title_len) {
 	return win;
 }
 
+void
+doConfigureWindow(uintptr_t id, int x, int y, int width, int height) {
+	Window win = (Window)(id);
+	unsigned int mask = CWX | CWY | CWWidth | CWHeight;
+	XWindowChanges values = {x,y,width,height,0,0,0}; 
+
+	XConfigureWindow(x_dpy, win, mask, values);
+}
+
 uintptr_t
 doShowWindow(uintptr_t id) {
 	Window win = (Window)(id);

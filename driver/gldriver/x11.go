@@ -70,7 +70,7 @@ func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 }
 
 func moveWindow(w *windowImpl, opts screen.WindowGenerator) error {
-	// todo
+	C.doConfigureWindow(C.uintptr_t(w.id), C.int(opts.X), c.int(opts.Y), C.int(width), C.int(height))
 	return nil
 }
 
