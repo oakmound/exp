@@ -7,7 +7,6 @@ package x11driver
 // TODO: implement a back buffer.
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -20,6 +19,7 @@ import (
 	"github.com/oakmound/shiny/driver/internal/drawer"
 	"github.com/oakmound/shiny/driver/internal/event"
 	"github.com/oakmound/shiny/driver/internal/lifecycler"
+	"github.com/oakmound/shiny/driver/internal/x11"
 	"github.com/oakmound/shiny/driver/internal/x11key"
 	"github.com/oakmound/shiny/screen"
 	"golang.org/x/image/math/f64"
@@ -176,42 +176,18 @@ func (w *windowImpl) handleMouse(x, y int16, b xproto.Button, state uint16, dir 
 	})
 }
 
-func (w *windowImpl) MoveWindow(x, y, width, height int32) {
-	vals := []uint32{}
-
-	flags := xproto.ConfigWindowHeight |
-		xproto.ConfigWindowWidth |
-		xproto.ConfigWindowX |
-		xproto.ConfigWindowY
-
-	vals = append(vals, uint32(x))
-	vals = append(vals, uint32(y))
-
-	if int16(width) <= 0 {
-		width = 1
-	}
-	vals = append(vals, uint32(width))
-
-	if int16(height) <= 0 {
-		height = 1
-	}
-	vals = append(vals, uint32(height))
-	w.x = uint32(x)
-	w.y = uint32(y)
-	w.width = uint32(width)
-	w.height = uint32(height)
-
-	cook := xproto.ConfigureWindowChecked(w.s.xc, w.xw, uint16(flags), vals)
-	if err := cook.Check(); err != nil {
-		fmt.Println("X11 configure window failed: ", err)
-		return
-	}
+func (w *windowImpl) MoveWindow(x, y, width, height int32) error {
+	newX, newY, newW, newH := x11.MoveWindow(w.s.xc, w.xw, x, y, width, height)
+	w.x = uint32(newX)
+	w.y = uint32(newY)
+	w.width = uint32(newW)
+	w.height = uint32(newH)
 	w.Send(size.Event{
-		WidthPx:     int(width),
-		HeightPx:    int(height),
-		WidthPt:     geom.Pt(width),
-		HeightPt:    geom.Pt(height),
+		WidthPx:     int(newW),
+		HeightPx:    int(newH),
+		WidthPt:     geom.Pt(newW),
+		HeightPt:    geom.Pt(newH),
 		PixelsPerPt: w.s.pixelsPerPt,
 	})
-
+	return nil
 }

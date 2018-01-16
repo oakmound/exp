@@ -18,6 +18,8 @@ import (
 
 func newWindow(opts screen.WindowGenerator) (uintptr, error) { return 0, nil }
 
+func moveWindow(w *windowImpl, opts screen.WindowGenerator) error { return nil }
+
 func initWindow(id *windowImpl) {}
 func showWindow(id *windowImpl) {}
 func closeWindow(id uintptr)    {}

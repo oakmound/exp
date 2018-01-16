@@ -387,3 +387,12 @@ func (w *windowImpl) Publish() screen.PublishResult {
 
 	return res
 }
+
+func (w *windowImpl) MoveWindow(x, y, width, height int32) error {
+	return moveWindow(w, screen.WindowGenerator{
+		X:      x,
+		Y:      y,
+		Width:  int(width),
+		Height: int(height),
+	})
+}

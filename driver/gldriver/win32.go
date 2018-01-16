@@ -73,7 +73,12 @@ func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return uintptr(w), nil
+}
+
+func moveWindow(w *windowImpl, opts screen.WindowGenerator) error {
+	return win32.ResizeClientRect(w32.HWND(w.id), opts)
 }
 
 func initWindow(w *windowImpl) {

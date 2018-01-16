@@ -156,8 +156,8 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) {
 	}
 }
 
-func (w *windowImpl) MoveWindow(x, y, wd, ht int32) {
-	win32.MoveWindow(w.hwnd, x, y, wd, ht, true)
+func (w *windowImpl) MoveWindow(x, y, wd, ht int32) error {
+	return win32.MoveWindow(w.hwnd, x, y, wd, ht, true)
 }
 
 func drawWindow(dc syscall.Handle, src2dst f64.Aff3, src interface{}, sr image.Rectangle, op draw.Op) (retErr error) {

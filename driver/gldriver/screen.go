@@ -143,5 +143,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 
 	showWindow(w)
 
+	moveWindow(w, opts)
+
 	return w, nil
 }

@@ -74,6 +74,11 @@ func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	return uintptr(C.doNewWindow(C.int(width), C.int(height), title)), nil
 }
 
+func moveWindow(w *windowImpl, opts screen.WindowGenerator) error {
+	// todo
+	return nil
+}
+
 func initWindow(w *windowImpl) {
 	w.glctx, w.worker = gl.NewContext()
 }

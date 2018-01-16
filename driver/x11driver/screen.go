@@ -433,9 +433,9 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	render.CreatePicture(s.xc, xp, xproto.Drawable(xw), pictformat, 0, nil)
 	xproto.MapWindow(s.xc, xw)
 
-	w.MoveWindow(opts.X, opts.Y, int32(width), int32(height))
+	err = w.MoveWindow(opts.X, opts.Y, int32(width), int32(height))
 
-	return w, nil
+	return w, err
 }
 
 func (s *screenImpl) initAtoms() (err error) {
