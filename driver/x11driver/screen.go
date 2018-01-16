@@ -419,6 +419,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 			xproto.EventMaskPointerMotion |
 			xproto.EventMaskExposure |
 			xproto.EventMaskStructureNotify |
+			xproto.EventMaskResizeRedirect |
 			xproto.EventMaskFocusChange,
 		},
 	)
