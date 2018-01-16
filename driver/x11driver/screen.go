@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/xgbutil"
+	"github.com/BurntSushi/xgbutil/xprop"
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/render"
@@ -443,38 +444,27 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 }
 
 func (s *screenImpl) initAtoms() (err error) {
-	s.atomNETWMName, err = s.internAtom("_NET_WM_NAME")
+	s.atomNETWMName, err = xprop.Atm(s.XUtil, "_NET_WM_NAME")
 	if err != nil {
 		return err
 	}
-	s.atomUTF8String, err = s.internAtom("UTF8_STRING")
+	s.atomUTF8String, err = xprop.Atm(s.XUtil, "UTF8_STRING")
 	if err != nil {
 		return err
 	}
-	s.atomWMDeleteWindow, err = s.internAtom("WM_DELETE_WINDOW")
+	s.atomWMDeleteWindow, err = xprop.Atm(s.XUtil, "WM_DELETE_WINDOW")
 	if err != nil {
 		return err
 	}
-	s.atomWMProtocols, err = s.internAtom("WM_PROTOCOLS")
+	s.atomWMProtocols, err = xprop.Atm(s.XUtil, "WM_PROTOCOLS")
 	if err != nil {
 		return err
 	}
-	s.atomWMTakeFocus, err = s.internAtom("WM_TAKE_FOCUS")
+	s.atomWMTakeFocus, err = xprop.Atm(s.XUtil, "WM_TAKE_FOCUS")
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func (s *screenImpl) internAtom(name string) (xproto.Atom, error) {
-	r, err := xproto.InternAtom(s.xc, false, uint16(len(name)), name).Reply()
-	if err != nil {
-		return 0, fmt.Errorf("x11driver: xproto.InternAtom failed: %v", err)
-	}
-	if r == nil {
-		return 0, fmt.Errorf("x11driver: xproto.InternAtom failed")
-	}
-	return r.Atom, nil
 }
 
 func (s *screenImpl) initKeyboardMapping() error {
