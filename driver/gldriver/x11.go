@@ -19,6 +19,7 @@ void processEvents();
 void makeCurrent(uintptr_t ctx);
 void swapBuffers(uintptr_t ctx);
 void doCloseWindow(uintptr_t id);
+void doConfigureWindow(uintptr_t id, int x, int y, int width, int height);
 uintptr_t doNewWindow(int x, int y, int width, int height, char* title, int title_len);
 uintptr_t doShowWindow(uintptr_t id);
 uintptr_t surfaceCreate();
