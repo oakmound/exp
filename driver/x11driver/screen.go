@@ -78,6 +78,7 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 	s = &screenImpl{
 		XUtil:   xutil,
 		xc:      xutil.Conn(),
+		atoms:   make(map[string]xproto.Atom),
 		xsi:     xutil.Setup().DefaultScreen(xutil.Conn()),
 		buffers: map[shm.Seg]*bufferImpl{},
 		uploads: map[uint16]chan struct{}{},
