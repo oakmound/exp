@@ -204,5 +204,14 @@ func (w *windowImpl) MoveWindow(x, y, width, height int32) {
 	cook := xproto.ConfigureWindowChecked(w.s.xc, w.xw, uint16(flags), vals)
 	if err := cook.Check(); err != nil {
 		fmt.Println("X11 configure window failed: ", err)
+		return
 	}
+	w.Send(size.Event{
+		WidthPx:     int(width),
+		HeightPx:    int(height),
+		WidthPt:     geom.Pt(width),
+		HeightPt:    geom.Pt(height),
+		PixelsPerPt: w.s.pixelsPerPt,
+	})
+
 }
