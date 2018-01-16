@@ -37,11 +37,7 @@ type screenImpl struct {
 	xsi     *xproto.ScreenInfo
 	keysyms x11key.KeysymTable
 
-	atomNETWMName      xproto.Atom
-	atomUTF8String     xproto.Atom
-	atomWMDeleteWindow xproto.Atom
-	atomWMProtocols    xproto.Atom
-	atomWMTakeFocus    xproto.Atom
+	atoms map[string]xproto.Atom
 
 	pixelsPerPt  float32
 	pictformat24 render.Pictformat
@@ -68,8 +64,18 @@ type screenImpl struct {
 	completionKeys  []uint16
 }
 
-func newScreenImpl(xutil *xgbutil.XUtil) (*screenImpl, error) {
-	s := &screenImpl{
+var (
+	initialAtoms = []string{
+		"_NET_WM_NAME",
+		"UTF8_STRING",
+		"WM_DELETE_WINDOW",
+		"WM_PROTOCOLS",
+		"WM_TAKE_FOCUS",
+	}
+)
+
+func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
+	s = &screenImpl{
 		XUtil:   xutil,
 		xc:      xutil.Conn(),
 		xsi:     xutil.Setup().DefaultScreen(xutil.Conn()),
@@ -77,8 +83,11 @@ func newScreenImpl(xutil *xgbutil.XUtil) (*screenImpl, error) {
 		uploads: map[uint16]chan struct{}{},
 		windows: map[xproto.Window]*windowImpl{},
 	}
-	if err := s.initAtoms(); err != nil {
-		return nil, err
+	for _, atom := range initialAtoms {
+		s.atoms[atom], err = xprop.Atm(s.XUtil, atom)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if err := s.initKeyboardMapping(); err != nil {
 		return nil, err
@@ -96,7 +105,6 @@ func newScreenImpl(xutil *xgbutil.XUtil) (*screenImpl, error) {
 		return nil, err
 	}
 
-	var err error
 	s.opaqueP, err = render.NewPictureId(s.xc)
 	if err != nil {
 		return nil, fmt.Errorf("x11driver: xproto.NewPictureId failed: %v", err)
@@ -139,18 +147,18 @@ func (s *screenImpl) run() {
 			s.mu.Unlock()
 
 		case xproto.ClientMessageEvent:
-			if ev.Type != s.atomWMProtocols || ev.Format != 32 {
+			if ev.Type != s.atoms["WM_PROTOCOLS"] || ev.Format != 32 {
 				break
 			}
 			switch xproto.Atom(ev.Data.Data32[0]) {
-			case s.atomWMDeleteWindow:
+			case s.atoms["WM_DELETE_WINDOW"]:
 				if w := s.findWindow(ev.Window); w != nil {
 					w.lifecycler.SetDead(true)
 					w.lifecycler.SendEvent(w, nil)
 				} else {
 					noWindowFound = true
 				}
-			case s.atomWMTakeFocus:
+			case s.atoms["WM_TAKE_FOCUS"]:
 				xproto.SetInputFocus(s.xc, xproto.InputFocusParent, ev.Window, xproto.Timestamp(ev.Data.Data32[1]))
 			}
 
@@ -429,10 +437,10 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	if err := cook.Check(); err != nil {
 		fmt.Println("x11 Create window error", err)
 	}
-	s.setProperty(xw, s.atomWMProtocols, s.atomWMDeleteWindow, s.atomWMTakeFocus)
+	s.setProperty(xw, s.atoms["WM_PROTOCOLS"], s.atoms["WM_DELETE_WINDOW"], s.atoms["WM_TAKE_FOCUS"])
 
 	title := []byte(opts.Title)
-	xproto.ChangeProperty(s.xc, xproto.PropModeReplace, xw, s.atomNETWMName, s.atomUTF8String, 8, uint32(len(title)), title)
+	xproto.ChangeProperty(s.xc, xproto.PropModeReplace, xw, s.atoms["_NET_WM_NAME"], s.atoms["UTF8_STRING"], 8, uint32(len(title)), title)
 
 	xproto.CreateGC(s.xc, xg, xproto.Drawable(xw), 0, nil)
 	render.CreatePicture(s.xc, xp, xproto.Drawable(xw), pictformat, 0, nil)
@@ -441,30 +449,6 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	err = w.MoveWindow(opts.X, opts.Y, int32(width), int32(height))
 
 	return w, err
-}
-
-func (s *screenImpl) initAtoms() (err error) {
-	s.atomNETWMName, err = xprop.Atm(s.XUtil, "_NET_WM_NAME")
-	if err != nil {
-		return err
-	}
-	s.atomUTF8String, err = xprop.Atm(s.XUtil, "UTF8_STRING")
-	if err != nil {
-		return err
-	}
-	s.atomWMDeleteWindow, err = xprop.Atm(s.XUtil, "WM_DELETE_WINDOW")
-	if err != nil {
-		return err
-	}
-	s.atomWMProtocols, err = xprop.Atm(s.XUtil, "WM_PROTOCOLS")
-	if err != nil {
-		return err
-	}
-	s.atomWMTakeFocus, err = xprop.Atm(s.XUtil, "WM_TAKE_FOCUS")
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *screenImpl) initKeyboardMapping() error {
