@@ -13,9 +13,10 @@ package x11driver
 import (
 	"fmt"
 
-	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/render"
 	"github.com/BurntSushi/xgb/shm"
+	"github.com/BurntSushi/xgbutil"
+	"github.com/BurntSushi/xgbutil/xevent"
 
 	"github.com/oakmound/shiny/driver/internal/errscreen"
 	"github.com/oakmound/shiny/screen"
@@ -34,24 +35,24 @@ func Main(f func(screen.Screen)) {
 }
 
 func main(f func(screen.Screen)) (retErr error) {
-	xc, err := xgb.NewConn()
+	xutil, err := xgbutil.NewConn()
 	if err != nil {
 		return fmt.Errorf("x11driver: xgb.NewConn failed: %v", err)
 	}
 	defer func() {
 		if retErr != nil {
-			xc.Close()
+			xevent.Quit(xutil)
 		}
 	}()
 
-	if err := render.Init(xc); err != nil {
+	if err := render.Init(xutil.Conn()); err != nil {
 		return fmt.Errorf("x11driver: render.Init failed: %v", err)
 	}
-	if err := shm.Init(xc); err != nil {
+	if err := shm.Init(xutil.Conn()); err != nil {
 		return fmt.Errorf("x11driver: shm.Init failed: %v", err)
 	}
 
-	s, err := newScreenImpl(xc)
+	s, err := newScreenImpl(xutil)
 	if err != nil {
 		return err
 	}

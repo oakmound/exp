@@ -12,6 +12,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/BurntSushi/xgbutil"
+
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/render"
 	"github.com/BurntSushi/xgb/shm"
@@ -29,6 +31,7 @@ import (
 // it's not obvious how to interrupt it to service a NewWindow request.
 
 type screenImpl struct {
+	*xgbutil.XUtil
 	xc      *xgb.Conn
 	xsi     *xproto.ScreenInfo
 	keysyms x11key.KeysymTable
@@ -64,10 +67,11 @@ type screenImpl struct {
 	completionKeys  []uint16
 }
 
-func newScreenImpl(xc *xgb.Conn) (*screenImpl, error) {
+func newScreenImpl(xutil *xgbutil.XUtil) (*screenImpl, error) {
 	s := &screenImpl{
-		xc:      xc,
-		xsi:     xproto.Setup(xc).DefaultScreen(xc),
+		XUtil:   xutil,
+		xc:      xutil.Conn(),
+		xsi:     xutil.Setup().DefaultScreen(xutil.Conn()),
 		buffers: map[shm.Seg]*bufferImpl{},
 		uploads: map[uint16]chan struct{}{},
 		windows: map[xproto.Window]*windowImpl{},
@@ -92,11 +96,11 @@ func newScreenImpl(xc *xgb.Conn) (*screenImpl, error) {
 	}
 
 	var err error
-	s.opaqueP, err = render.NewPictureId(xc)
+	s.opaqueP, err = render.NewPictureId(s.xc)
 	if err != nil {
 		return nil, fmt.Errorf("x11driver: xproto.NewPictureId failed: %v", err)
 	}
-	s.uniformP, err = render.NewPictureId(xc)
+	s.uniformP, err = render.NewPictureId(s.xc)
 	if err != nil {
 		return nil, fmt.Errorf("x11driver: xproto.NewPictureId failed: %v", err)
 	}
