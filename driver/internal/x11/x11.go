@@ -59,12 +59,15 @@ func SetFullScreen(xc *xgb.Conn, xw xproto.Window, fullscreen bool) error {
 
 	reply, err := xproto.InternAtom(xc, false, uint16(len(first)), first).Reply()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	atom1 = reply.Atom
 
 	reply, err = xproto.InternAtom(xc, false, uint16(len(messageType)), messageType).Reply()
 	if err != nil {
+		fmt.Println(err)
+
 		return err
 	}
 	mstype := reply.Atom
@@ -74,6 +77,7 @@ func SetFullScreen(xc *xgb.Conn, xw xproto.Window, fullscreen bool) error {
 
 	ev, err := xevent.NewClientMessage(32, window, mstype, action, int(atom1), int(atom2), source)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -82,6 +86,8 @@ func SetFullScreen(xc *xgb.Conn, xw xproto.Window, fullscreen bool) error {
 
 	if err != nil {
 		fmt.Println("x11.SetFullScreen: no errors")
+	} else {
+		fmt.Println(err)
 	}
 
 	return err
