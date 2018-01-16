@@ -43,12 +43,8 @@ func SetFullScreen(xc *xgb.Conn, xw xproto.Window, fullscreen bool) error {
 
 	fmt.Println("Entering x11.SetFullScreen")
 	window := xw
-	var action int
-	if !fullscreen {
-		action = ewmh.StateRemove
-	} else {
-		action = ewmh.StateAdd
-	}
+	action := ewmh.StateToggle
+
 	first := "_NET_WM_STATE_FULLSCREEN"
 	messageType := "_NET_WM_STATE"
 	source := 2
