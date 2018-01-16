@@ -38,6 +38,7 @@ import (
 
 const (
 	DensityIndependentPixelsPerInch = 160
+	MillimetersPerInch              = MillimetresPerInch
 	MillimetresPerInch              = 25.4
 	PointsPerInch                   = 72
 )

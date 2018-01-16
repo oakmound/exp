@@ -22,6 +22,7 @@ import (
 
 	"github.com/oakmound/shiny/driver/internal/x11key"
 	"github.com/oakmound/shiny/screen"
+	"github.com/oakmound/shiny/unit"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/mouse"
@@ -93,12 +94,8 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 	if err := s.initKeyboardMapping(); err != nil {
 		return nil, err
 	}
-	const (
-		mmPerInch = 25.4
-		ptPerInch = 72
-	)
 	pixelsPerMM := float32(s.xsi.WidthInPixels) / float32(s.xsi.WidthInMillimeters)
-	s.pixelsPerPt = pixelsPerMM * mmPerInch / ptPerInch
+	s.pixelsPerPt = pixelsPerMM * unit.MillimetersPerInch / unit.PointsPerInch
 	if err := s.initPictformats(); err != nil {
 		return nil, err
 	}
