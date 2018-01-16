@@ -40,6 +40,8 @@ func MoveWindow(xc *xgb.Conn, xw xproto.Window, x, y, width, height int32) (int3
 // todo: upgrade all of our xgb.Conns to xgbutil.XUtil types
 // this code is stitched together from xgbutil examples
 func SetFullScreen(xc *xgb.Conn, xw xproto.Window, fullscreen bool) error {
+
+	fmt.Println("Entering x11.SetFullScreen")
 	window := xw
 	var action int
 	if !fullscreen {

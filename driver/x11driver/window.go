@@ -109,8 +109,8 @@ func (w *windowImpl) Publish() screen.PublishResult {
 	return screen.PublishResult{}
 }
 
-func (w *windowImpl) SetFullScreen(fullscreen bool) {
-	x11.SetFullScreen(w.s.xc, w.xw, fullscreen)
+func (w *windowImpl) SetFullScreen(fullscreen bool) error {
+	return x11.SetFullScreen(w.s.xc, w.xw, fullscreen)
 }
 
 func (w *windowImpl) handleConfigureNotify(ev xproto.ConfigureNotifyEvent) {
