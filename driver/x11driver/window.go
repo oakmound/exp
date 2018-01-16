@@ -7,6 +7,7 @@ package x11driver
 // TODO: implement a back buffer.
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -41,11 +42,13 @@ type windowImpl struct {
 
 	// This next group of variables are mutable, but are only modified in the
 	// screenImpl.run goroutine.
-	width, height int
+	width, height uint32
 
 	lifecycler lifecycler.State
 
-	mu       sync.Mutex
+	mu sync.Mutex
+
+	x, y     uint32
 	released bool
 }
 
@@ -106,20 +109,24 @@ func (w *windowImpl) Publish() screen.PublishResult {
 	return screen.PublishResult{}
 }
 
+func (w *windowImpl) SetFullScreen(fullscreen bool) {
+
+}
+
 func (w *windowImpl) handleConfigureNotify(ev xproto.ConfigureNotifyEvent) {
 	// TODO: does the order of these lifecycle and size events matter? Should
 	// they really be a single, atomic event?
 	w.lifecycler.SetVisible((int(ev.X)+int(ev.Width)) > 0 && (int(ev.Y)+int(ev.Height)) > 0)
 	w.lifecycler.SendEvent(w, nil)
 
-	newWidth, newHeight := int(ev.Width), int(ev.Height)
+	newWidth, newHeight := uint32(ev.Width), uint32(ev.Height)
 	if w.width == newWidth && w.height == newHeight {
 		return
 	}
 	w.width, w.height = newWidth, newHeight
 	w.Send(size.Event{
-		WidthPx:     newWidth,
-		HeightPx:    newHeight,
+		WidthPx:     int(newWidth),
+		HeightPx:    int(newHeight),
 		WidthPt:     geom.Pt(newWidth),
 		HeightPt:    geom.Pt(newHeight),
 		PixelsPerPt: w.s.pixelsPerPt,
@@ -167,4 +174,44 @@ func (w *windowImpl) handleMouse(x, y int16, b xproto.Button, state uint16, dir 
 		Modifiers: x11key.KeyModifiers(state),
 		Direction: dir,
 	})
+}
+
+func (w *windowImpl) MoveWindow(x, y, width, height int32) {
+	vals := []uint32{}
+
+	flags := xproto.ConfigWindowHeight |
+		xproto.ConfigWindowWidth |
+		xproto.ConfigWindowX |
+		xproto.ConfigWindowY
+
+	vals = append(vals, uint32(x))
+	vals = append(vals, uint32(y))
+
+	if int16(width) <= 0 {
+		width = 1
+	}
+	vals = append(vals, uint32(width))
+
+	if int16(height) <= 0 {
+		height = 1
+	}
+	vals = append(vals, uint32(height))
+	w.x = uint32(x)
+	w.y = uint32(y)
+	w.width = uint32(width)
+	w.height = uint32(height)
+
+	cook := xproto.ConfigureWindowChecked(w.s.xc, w.xw, uint16(flags), vals)
+	if err := cook.Check(); err != nil {
+		fmt.Println("X11 configure window failed: ", err)
+		return
+	}
+	w.Send(size.Event{
+		WidthPx:     int(width),
+		HeightPx:    int(height),
+		WidthPt:     geom.Pt(width),
+		HeightPt:    geom.Pt(height),
+		PixelsPerPt: w.s.pixelsPerPt,
+	})
+
 }

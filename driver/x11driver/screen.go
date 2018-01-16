@@ -405,7 +405,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 
 	w.lifecycler.SendEvent(w, nil)
 
-	xproto.CreateWindow(s.xc, s.xsi.RootDepth, xw, s.xsi.Root,
+	cook := xproto.CreateWindowChecked(s.xc, s.xsi.RootDepth, xw, s.xsi.Root,
 		int16(opts.X), int16(opts.Y), uint16(width), uint16(height), 0,
 		xproto.WindowClassInputOutput, s.xsi.RootVisual,
 		xproto.CwEventMask,
@@ -420,6 +420,10 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 			xproto.EventMaskFocusChange,
 		},
 	)
+
+	if err := cook.Check(); err != nil {
+		fmt.Println("x11 Create window error", err)
+	}
 	s.setProperty(xw, s.atomWMProtocols, s.atomWMDeleteWindow, s.atomWMTakeFocus)
 
 	title := []byte(opts.Title)
@@ -428,6 +432,8 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	xproto.CreateGC(s.xc, xg, xproto.Drawable(xw), 0, nil)
 	render.CreatePicture(s.xc, xp, xproto.Drawable(xw), pictformat, 0, nil)
 	xproto.MapWindow(s.xc, xw)
+
+	w.MoveWindow(opts.X, opts.Y, int32(width), int32(height))
 
 	return w, nil
 }
