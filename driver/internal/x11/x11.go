@@ -77,6 +77,12 @@ func SetFullScreen(xc *xgb.Conn, xw xproto.Window, fullscreen bool) error {
 		return err
 	}
 
-	return xproto.SendEventChecked(xc, false, xw, evMask,
+	err = xproto.SendEventChecked(xc, false, xw, evMask,
 		string(ev.Bytes())).Check()
+
+	if err != nil {
+		fmt.Println("x11.SetFullScreen: no errors")
+	}
+
+	return err
 }
