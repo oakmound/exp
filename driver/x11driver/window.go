@@ -110,7 +110,7 @@ func (w *windowImpl) Publish() screen.PublishResult {
 }
 
 func (w *windowImpl) SetFullScreen(fullscreen bool) error {
-	return x11.ToggleFullScreen(w.s.XUtil, w.xw)
+	return x11.SetFullScreen(w.s.XUtil, w.xw, fullscreen)
 }
 
 func (w *windowImpl) handleConfigureNotify(ev xproto.ConfigureNotifyEvent) {

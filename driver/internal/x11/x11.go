@@ -41,3 +41,11 @@ func MoveWindow(xc *xgb.Conn, xw xproto.Window, x, y, width, height int32) (int3
 func ToggleFullScreen(xutil *xgbutil.XUtil, win xproto.Window) error {
 	return ewmh.WmStateReq(xutil, win, ewmh.StateToggle, "_NET_WM_STATE_FULLSCREEN")
 }
+
+func SetFullScreen(xutil *xgbutil.XUtil, win xproto.Window, fullscreen bool) error {
+	action := ewmh.StateRemove
+	if fullscreen {
+		action = ewmh.StateAdd
+	}
+	return ewmh.WmStateReq(xutil, win, action, "_NET_WM_STATE_FULLSCREEN")
+}
