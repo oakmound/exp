@@ -68,7 +68,7 @@ func init() {
 func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 	width, height := optsSize(opts)
 
-	title := C.CString(opts.GetTitle())
+	title := C.CString(opts.Title)
 	defer C.free(unsafe.Pointer(title))
 
 	return uintptr(C.doNewWindow(C.int(width), C.int(height), title)), nil
