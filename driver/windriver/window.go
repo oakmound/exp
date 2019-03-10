@@ -111,7 +111,7 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) {
 		}
 		w.style = w32.GetWindowLong(w.hwnd, w32.GWL_STYLE)
 		w.exStyle = w32.GetWindowLong(w.hwnd, w32.GWL_EXSTYLE)
-		w.windowRect = w32.GetWindowRect(w.hwnd)
+		w.windowRect, _ = w32.GetWindowRect(w.hwnd)
 	}
 
 	w.fullscreen = fullscreen
