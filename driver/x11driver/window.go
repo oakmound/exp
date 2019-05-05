@@ -142,7 +142,7 @@ func (w *windowImpl) handleExpose() {
 }
 
 func (w *windowImpl) handleKey(detail xproto.Keycode, state uint16, dir key.Direction) {
-	r, c := w.s.keysyms.Lookup(uint8(detail), state)
+	r, c := w.s.keysyms.Lookup(uint8(detail), state, w.s.numLockMod)
 	w.Send(key.Event{
 		Rune:      r,
 		Code:      c,
