@@ -72,7 +72,7 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	if err != nil {
 		return 0, err
 	}
-	style, exStyle := WindowsStyle(opts.BorderStyle)
+	style, exStyle := WindowsStyle(opts)
 	// This should be a feature, putting windows on the top layer
 	//exStyle = exStyle | WS_EX_TOPMOST
 	hwnd, err := _CreateWindowEx(exStyle,
@@ -95,8 +95,7 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 
 // WindowsStyle converts a screen.BorderStyle into a style and
 // exStyle for a Windows window
-func WindowsStyle(border screen.BorderStyle) (uint32, uint32) {
-	// ignore input
+func WindowsStyle(gen screen.WindowGenerator) (uint32, uint32) {
 	return WS_OVERLAPPEDWINDOW, 0
 }
 

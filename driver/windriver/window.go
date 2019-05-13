@@ -9,6 +9,7 @@ package windriver
 // TODO: implement a back buffer.
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -16,7 +17,6 @@ import (
 	"math"
 	"syscall"
 	"unsafe"
-	"errors"
 
 	"github.com/oakmound/shiny/driver/internal/drawer"
 	"github.com/oakmound/shiny/driver/internal/event"
@@ -45,6 +45,7 @@ type windowImpl struct {
 	borderless     bool
 	maximized      bool
 	windowRect     *w32.RECT
+	clientRect     *w32.RECT
 }
 
 func (w *windowImpl) Release() {
@@ -100,24 +101,44 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 }
 
 func (w *windowImpl) SetBorderless(borderless bool) error {
-	// Don't set borderless if currently fullscreen. 
+	// Don't set borderless if currently fullscreen.
 	if !w.fullscreen && borderless != w.borderless {
 		if !w.borderless {
 			// Save current window information.
-			w.style = w32.GetWindowLong(w.hwnd, w32.GWL_STYLE)
-			w.exStyle = w32.GetWindowLong(w.hwnd, w32.GWL_EXSTYLE)
+			w.style = w32.WS_VISIBLE | w32.WS_CLIPSIBLINGS | w32.WS_OVERLAPPEDWINDOW
+			w.exStyle = w32.WS_EX_WINDOWEDGE
+			// We don't need to get these values when w.borderless is true
+			// because scaling is impossible without a border to grab to scale.
+			// Todo: except through programatic window resizing.
+			w.windowRect, _ = w32.GetWindowRect(w.hwnd)
+			w.clientRect, _ = w32.GetClientRect(w.hwnd)
 		}
 		w.borderless = borderless
 		if borderless {
-			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, 0)
-			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, 0)
+			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE,
+				w.style & ^(w32.WS_CAPTION|w32.WS_THICKFRAME))
+			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE,
+				w.exStyle&^(w32.WS_EX_DLGMODALFRAME|
+					w32.WS_EX_WINDOWEDGE|w32.WS_EX_CLIENTEDGE|w32.WS_EX_STATICEDGE))
+
+			leftOffset := ((w.windowRect.Right - w.windowRect.Left) - w.clientRect.Right) / 2
+			// The -leftOffset here is assuming that the bottom border has the same
+			// height as the left and right do width.
+			topOffset := ((w.windowRect.Bottom - w.windowRect.Top) - w.clientRect.Bottom) - leftOffset
+
+			w32.SetWindowPos(w.hwnd, 0, w.windowRect.Left+leftOffset, w.windowRect.Top+topOffset,
+				w.clientRect.Right, w.clientRect.Bottom,
+				w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+
 		} else {
-			// If our old style is also borderless, restore defaults
-			if w.style == 0 && w.exStyle == 0 {
-				w.style = w32.WS_OVERLAPPEDWINDOW
-			}
 			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, w.style)
 			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, w.exStyle)
+
+			// On restore, resize to the previous saved rect size.
+			w32.SetWindowPos(w.hwnd, 0, w.windowRect.Left, w.windowRect.Top,
+				w.windowRect.Right-w.windowRect.Left, w.windowRect.Bottom-w.windowRect.Top,
+				w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+
 		}
 		return nil
 	}
@@ -142,8 +163,8 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) error {
 		if w.maximized {
 			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_RESTORE, 0)
 		}
-		w.style = w32.GetWindowLong(w.hwnd, w32.GWL_STYLE)
-		w.exStyle = w32.GetWindowLong(w.hwnd, w32.GWL_EXSTYLE)
+		w.style = w32.WS_VISIBLE | w32.WS_CLIPSIBLINGS | w32.WS_OVERLAPPEDWINDOW
+		w.exStyle = w32.WS_EX_WINDOWEDGE
 		w.windowRect, _ = w32.GetWindowRect(w.hwnd)
 	}
 
