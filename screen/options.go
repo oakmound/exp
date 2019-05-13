@@ -19,6 +19,10 @@ type WindowGenerator struct {
 	// Borderless determines whether the new window will have borders or not
 	Borderless bool
 
+	// TopMost determines whether the new window will stay on top of other windows
+	// even when out of focus.
+	TopMost bool
+
 	// NoScaling determines whether the new window will have scaling allowed.
 	// With a zero value of false, scaling is allowed.
 	NoScaling bool
@@ -69,6 +73,12 @@ func Fullscreen(on bool) WindowOption {
 func Borderless(on bool) WindowOption {
 	return func(g *WindowGenerator) {
 		g.Borderless = on
+	}
+}
+
+func TopMost(on bool) WindowOption {
+	return func(g *WindowGenerator) {
+		g.TopMost = on
 	}
 }
 

@@ -74,7 +74,9 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	}
 	style, exStyle := WindowsStyle(opts)
 	// This should be a feature, putting windows on the top layer
-	//exStyle = exStyle | WS_EX_TOPMOST
+	if opts.TopMost {
+		exStyle = exStyle | WS_EX_TOPMOST
+	}
 	hwnd, err := _CreateWindowEx(exStyle,
 		wcname, title,
 		style,
