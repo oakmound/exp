@@ -66,7 +66,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 
 	var err error
 	w.hwnd, err = win32.NewWindow(opts)
-	style, exStyle := win32.WindowsStyle(opts.BorderStyle)
+	style, exStyle := win32.WindowsStyle(opts)
 	w.style = int32(style)
 	w.exStyle = int32(exStyle)
 	if err != nil {
@@ -80,6 +80,19 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	err = win32.ResizeClientRect(w.hwnd, opts)
 	if err != nil {
 		return nil, err
+	}
+
+	if opts.Fullscreen {
+		err = w.SetFullScreen(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if opts.Borderless {
+		err = w.SetBorderless(true)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	win32.Show(w.hwnd)
