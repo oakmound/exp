@@ -445,6 +445,18 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	xproto.MapWindow(s.xc, xw)
 
 	err = w.MoveWindow(opts.X, opts.Y, int32(width), int32(height))
+	if opts.Fullscreen {
+		err = w.SetFullScreen(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if opts.Borderless {
+		err = w.SetBorderless(true)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return w, err
 }
