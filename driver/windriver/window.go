@@ -104,9 +104,6 @@ func (w *windowImpl) SetBorderless(borderless bool) error {
 	// Don't set borderless if currently fullscreen.
 	if !w.fullscreen && borderless != w.borderless {
 		if !w.borderless {
-			// Save current window information.
-			w.style = w32.WS_VISIBLE | w32.WS_CLIPSIBLINGS | w32.WS_OVERLAPPEDWINDOW
-			w.exStyle = w32.WS_EX_WINDOWEDGE
 			// We don't need to get these values when w.borderless is true
 			// because scaling is impossible without a border to grab to scale.
 			// Todo: except through programatic window resizing.
@@ -163,8 +160,6 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) error {
 		if w.maximized {
 			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_RESTORE, 0)
 		}
-		w.style = w32.WS_VISIBLE | w32.WS_CLIPSIBLINGS | w32.WS_OVERLAPPEDWINDOW
-		w.exStyle = w32.WS_EX_WINDOWEDGE
 		w.windowRect, _ = w32.GetWindowRect(w.hwnd)
 	}
 
