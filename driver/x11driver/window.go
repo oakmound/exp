@@ -113,6 +113,10 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) error {
 	return x11.SetFullScreen(w.s.XUtil, w.xw, fullscreen)
 }
 
+func (w *windowImpl) SetBorderless(borderless bool) error {
+	return x11.SetBorderless(w.s.XUtil, w.xw, borderless)
+} 
+
 func (w *windowImpl) handleConfigureNotify(ev xproto.ConfigureNotifyEvent) {
 	// TODO: does the order of these lifecycle and size events matter? Should
 	// they really be a single, atomic event?

@@ -8,6 +8,7 @@ import (
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
+	"github.com/BurntSushi/xgbutil/motif"
 )
 
 func MoveWindow(xc *xgb.Conn, xw xproto.Window, x, y, width, height int32) (int32, int32, int32, int32) {
@@ -48,4 +49,15 @@ func SetFullScreen(xutil *xgbutil.XUtil, win xproto.Window, fullscreen bool) err
 		action = ewmh.StateAdd
 	}
 	return ewmh.WmStateReq(xutil, win, action, "_NET_WM_STATE_FULLSCREEN")
+}
+
+func SetBorderless(xutil *xgbutil.XUtil, win xproto.Window, borderless bool) error {
+	hints := &motif.Hints{
+		Flags: motif.HintDecorations,
+		Decoration: motif.DecorationNone, 
+	}
+	if !borderless {
+		hints.Decoration = motif.DecorationAll
+	}
+	return motif.WmHintsSet(xutil, win, hints)
 }

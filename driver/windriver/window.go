@@ -16,6 +16,7 @@ import (
 	"math"
 	"syscall"
 	"unsafe"
+	"errors"
 
 	"github.com/oakmound/shiny/driver/internal/drawer"
 	"github.com/oakmound/shiny/driver/internal/event"
@@ -41,6 +42,7 @@ type windowImpl struct {
 	// whether styles are int32 or uint32s.
 	style, exStyle int32
 	fullscreen     bool
+	borderless     bool
 	maximized      bool
 	windowRect     *w32.RECT
 }
@@ -97,7 +99,38 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 	})
 }
 
-func (w *windowImpl) SetFullScreen(fullscreen bool) {
+func (w *windowImpl) SetBorderless(borderless bool) error {
+	// Don't set borderless if currently fullscreen. 
+	if !w.fullscreen && borderless != w.borderless {
+		if !w.borderless {
+			// Save current window information.
+			w.style = w32.GetWindowLong(w.hwnd, w32.GWL_STYLE)
+			w.exStyle = w32.GetWindowLong(w.hwnd, w32.GWL_EXSTYLE)
+		}
+		w.borderless = borderless
+		if borderless {
+			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, 0)
+			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, 0)
+		} else {
+			// If our old style is also borderless, restore defaults
+			if w.style == 0 && w.exStyle == 0 {
+				w.style = w32.WS_OVERLAPPEDWINDOW
+			}
+			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, w.style)
+			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, w.exStyle)
+		}
+		return nil
+	}
+	if w.fullscreen {
+		return errors.New("cannot combine borderless and fullscreen")
+	}
+	return nil
+}
+
+func (w *windowImpl) SetFullScreen(fullscreen bool) error {
+	if w.borderless {
+		return errors.New("cannot combine borderless and fullscreen")
+	}
 	// Fullscreen impl copied from chromium
 	// https://src.chromium.org/viewvc/chrome/trunk/src/ui/views/win/fullscreen_handler.cc
 	// Save current window state if not already fullscreen.
@@ -154,6 +187,7 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) {
 			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_MAXIMIZE, 0)
 		}
 	}
+	return nil
 }
 
 func (w *windowImpl) MoveWindow(x, y, wd, ht int32) error {
