@@ -140,10 +140,7 @@ func Show(hwnd w32.HWND) {
 }
 
 func Release(hwnd w32.HWND) {
-	// TODO(andlabs): check for errors from this?
-	// TODO(andlabs): remove unsafe
-	w32.DestroyWindow(hwnd)
-	// TODO(andlabs): what happens if we're still painting?
+	w32.SendMessage(hwnd, w32.WM_CLOSE, 0, 0)
 }
 
 func sendFocus(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
