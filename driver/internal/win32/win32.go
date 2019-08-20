@@ -192,7 +192,8 @@ func sendSize(hwnd w32.HWND) {
 
 func sendClose(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	LifecycleEvent(hwnd, lifecycle.StageDead)
-	return 0
+	ptr, _ := w32.DefWindowProc(hwnd, uMsg, wParam, lParam)
+	return ptr
 }
 
 func sendMouseEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
