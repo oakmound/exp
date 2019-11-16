@@ -1,11 +1,12 @@
 # Shiny
 
 This is a fork of golang.org/exp/shiny. 
-The goal of this fork is to add additional window management functionality, 
-and otherwise actively maintain the project where it is not being maintained in
-it's current form. 
+The goal of this fork is to add additional window management functionality, and
+focus the project down to just window management.
 
 ## Long Term Plans 
 
-1. Window, Screen, Input management improvements.
-2. Probably moving UI packages somewhere else?
+1. Standardize interfaces across OSes
+2. Add new drivers for better performance, optional CGO
+3. Add Fullscreen and screen movement to all OSes 
+4. Add Window scaling types (bicubic, etc.) to all OSes

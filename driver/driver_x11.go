@@ -14,3 +14,7 @@ import (
 func main(f func(screen.Screen)) {
 	x11driver.Main(f)
 }
+
+func monitorSize() (int, int) {
+	return 0, 0
+}
