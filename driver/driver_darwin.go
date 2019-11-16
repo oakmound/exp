@@ -14,3 +14,7 @@ import (
 func main(f func(screen.Screen)) {
 	gldriver.Main(f)
 }
+func monitorSize() (int, int) {
+	// Exec system_profile
+	return 0, 0
+}
