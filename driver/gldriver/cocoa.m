@@ -216,6 +216,7 @@ uint64 threadID() {
 		self.window.nextResponder = NULL;
 	}
 }
+
 @end
 
 @interface AppDelegate : NSObject<NSApplicationDelegate>
@@ -237,6 +238,7 @@ uint64 threadID() {
 	lifecycleHideAll();
 }
 @end
+
 
 uintptr_t doNewWindow(int width, int height, char* title) {
 	NSScreen *screen = [NSScreen mainScreen];
@@ -300,6 +302,16 @@ void doShowWindow(uintptr_t viewID) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[view.window makeKeyAndOrderFront:view.window];
 	});
+}
+
+void doMoveWindow(uintptr_t viewID, int x, int y, int width, int height) {
+	ScreenGLView* view = (ScreenGLView*)viewID;
+	NSRect frame = [view.window frame];
+	frame.origin.x = x;
+	frame.origin.y = y + height;
+	frame.size.width = width;
+	frame.size.height = height;
+	[view.window setFrame:frame display:YES];
 }
 
 void doCloseWindow(uintptr_t viewID) {

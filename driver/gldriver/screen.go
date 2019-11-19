@@ -130,6 +130,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 		publish:     make(chan struct{}),
 		publishDone: make(chan screen.PublishResult),
 		drawDone:    make(chan struct{}),
+		moveRequest: make(chan screen.WindowGenerator),
 	}
 	initWindow(w)
 

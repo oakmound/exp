@@ -22,6 +22,7 @@ void startDriver();
 void stopDriver();
 void makeCurrentContext(uintptr_t ctx);
 void flushContext(uintptr_t ctx);
+void doMoveWindow(uintptr_t viewID, int x, int y, int width, int height);
 uintptr_t doNewWindow(int width, int height, char* title);
 void doShowWindow(uintptr_t id);
 void doCloseWindow(uintptr_t id);
@@ -75,7 +76,7 @@ func newWindow(opts screen.WindowGenerator) (uintptr, error) {
 }
 
 func moveWindow(w *windowImpl, opts screen.WindowGenerator) error {
-	// todo
+	w.moveRequest <- opts
 	return nil
 }
 
@@ -126,6 +127,14 @@ func drawgl(id uintptr) {
 	theScreen.mu.Lock()
 	w := theScreen.windows[id]
 	theScreen.mu.Unlock()
+
+	select {
+	case opts := <-w.moveRequest:
+		width, height := optsSize(opts)
+		fmt.Println("Moving window", opts.X, opts.Y, width, height)
+		C.doMoveWindow(C.uintptr_t(w.id),  C.int(opts.X), C.int(opts.Y), C.int(width), C.int(height))
+	default:
+	}
 
 	if w == nil {
 		return // closing window

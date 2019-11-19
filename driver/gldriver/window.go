@@ -44,6 +44,7 @@ type windowImpl struct {
 	publish     chan struct{}
 	publishDone chan screen.PublishResult
 	drawDone    chan struct{}
+	moveRequest chan screen.WindowGenerator
 
 	// glctxMu is a mutex that enforces the atomicity of methods like
 	// Texture.Upload or Window.Draw that are conceptually one operation
