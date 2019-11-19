@@ -16,17 +16,21 @@ import (
 	"github.com/oakmound/shiny/driver/gldriver"
 	"github.com/oakmound/shiny/screen"
 )
-
+ 
 func main(f func(screen.Screen)) {
 	gldriver.Main(f)
 }
+
+var (
+	sysProfRegex = regexp.MustCompile(`Resolution: (\d)* x (\d)*`)
+)
+
 func monitorSize() (int, int) {
 	out, err := exec.Command("system_profiler", "SPDisplaysDataType").CombinedOutput()
-	if err != nil {
+	if err != nil { 
 		return 0, 0
 	}
-	rgxp := regexp.MustCompile(`Resolution: (\d)* x (\d)*`)
-	found := rgxp.FindAll(out, -1)
+	found := sysProfRegex.FindAll(out, -1)
 	if len(found) == 0 {
 		return 0, 0
 	}
@@ -42,7 +46,7 @@ func monitorSize() (int, int) {
 	w, err := strconv.Atoi(string(dims[0]))
 	if err != nil {
 		return 0, 0
-	}
+	} 
 	h, err := strconv.Atoi(string(dims[1]))
 	if err != nil {
 		return 0, 0
