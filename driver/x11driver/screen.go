@@ -22,7 +22,6 @@ import (
 
 	"github.com/oakmound/shiny/driver/internal/x11key"
 	"github.com/oakmound/shiny/screen"
-	"github.com/oakmound/shiny/unit"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/mouse"
