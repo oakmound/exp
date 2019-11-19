@@ -76,6 +76,11 @@ var (
 	}
 )
 
+const (
+	millimetersPerInch              = 25.4
+	pointsPerInch                   = 72
+)
+
 func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 	s = &screenImpl{
 		XUtil:   xutil,
@@ -96,7 +101,7 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 		return nil, err
 	}
 	pixelsPerMM := float32(s.xsi.WidthInPixels) / float32(s.xsi.WidthInMillimeters)
-	s.pixelsPerPt = pixelsPerMM * unit.MillimetersPerInch / unit.PointsPerInch
+	s.pixelsPerPt = pixelsPerMM * millimetersPerInch / pointsPerInch
 	if err := s.initPictformats(); err != nil {
 		return nil, err
 	}
