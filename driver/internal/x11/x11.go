@@ -1,5 +1,6 @@
 package x11
 
+// +build linux openbsd
 import (
 	"fmt"
 
@@ -53,8 +54,8 @@ func SetFullScreen(xutil *xgbutil.XUtil, win xproto.Window, fullscreen bool) err
 
 func SetBorderless(xutil *xgbutil.XUtil, win xproto.Window, borderless bool) error {
 	hints := &motif.Hints{
-		Flags: motif.HintDecorations,
-		Decoration: motif.DecorationNone, 
+		Flags:      motif.HintDecorations,
+		Decoration: motif.DecorationNone,
 	}
 	if !borderless {
 		hints.Decoration = motif.DecorationAll
