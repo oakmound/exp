@@ -1,6 +1,7 @@
+// +build linux openbsd
+
 package x11
 
-// +build linux openbsd
 import (
 	"fmt"
 
