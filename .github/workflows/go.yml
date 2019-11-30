@@ -40,7 +40,7 @@ jobs:
     - name: Get dependencies
       run: |
         mkdir -p /home/runner/go/bin
-        git clone https://github.com/oakmound/shiny
+        go mod tidy
 
     - name: Test
       run: go run coverage/cover.go ${{ matrix.platform }}
