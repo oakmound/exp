@@ -30,6 +30,8 @@ func main() {
 
 func ubuntu() {
 	// cmd := exec.Command("cd", "screen/")
+	wd, err := os.Getwd()
+	fmt.Println("PWD:", wd, err)
 
 	cmd := exec.Command("go", "test", "-coverprofile=profile.out", "-covermode=atomic", "./screen/...")
 	cmd2 := exec.Command("cat", "profile.out", ">>", "coverage.txt")
@@ -38,17 +40,20 @@ func ubuntu() {
 	// "rm profile.out")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		fmt.Println("Erring", err)
+		os.Exit(1)
 	}
 	err2 := cmd2.Run()
 	if err2 != nil {
 		fmt.Println("2", err)
+		os.Exit(1)
 	}
 	err3 := cmd3.Run()
 	if err3 != nil {
 		fmt.Println("3", err)
+		os.Exit(1)
 	}
 
 }
