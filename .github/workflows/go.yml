@@ -39,7 +39,7 @@ jobs:
     - name: Get dependencies
       run: |
         mkdir -p /home/runner/go/bin
-        go get -v -t -d ./...
+        git clone https://github.com/oakmound/shiny
 
     - name: Test
       run: go run coverage/cover.go ${{job.runs-on}}
