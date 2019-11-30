@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - shell: bash
-        run: echo '' > coverage.txt
+        run: touch coverage.txt
       - name: Share Coverage Store
         uses: actions/upload-artifact@v1
         with:
