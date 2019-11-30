@@ -42,7 +42,7 @@ jobs:
         git clone https://github.com/oakmound/shiny
 
     - name: Test
-      run: go run coverage/cover.go ${{job.runs-on}}
+      run: go run coverage/cover.go ${{ matrix.platform }}
     
     - name: Share Coverage Store
       uses: actions/upload-artifact@v1
