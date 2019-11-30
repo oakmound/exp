@@ -10,11 +10,11 @@ jobs:
         run: echo '' > coverage.txt
       - name: Share Coverage Store
         uses: actions/upload-artifact@v1
-
-  
+        with:
+          name: coverage
 
   test-platforms:
-    name: Ubuntu
+    name: ${{ matrix.platform }}-Test
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
