@@ -43,7 +43,9 @@ jobs:
         go mod tidy
 
     - name: Test
-      run: go run coverage/cover.go ${{ matrix.platform }}
+      run: |
+        go run coverage/cover.go ${{ matrix.platform }}
+        ls
     
     - name: Share Coverage Store
       uses: actions/upload-artifact@v1
