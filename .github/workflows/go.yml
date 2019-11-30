@@ -34,7 +34,6 @@ jobs:
 
     - name: Get dependencies
       run: |
-        mkdir -p /home/runner/go/bin
         go mod tidy
 
     - name: Get Coverage Store
@@ -46,8 +45,6 @@ jobs:
     - name: Test
       run: |
         go run coverage/cover.go ${{ matrix.platform }}
-        ls
-        pwd
     
     - name: Share Coverage Store
       uses: actions/upload-artifact@v1
