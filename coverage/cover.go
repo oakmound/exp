@@ -47,12 +47,12 @@ func ubuntu() {
 	}
 	err2 := cmd2.Run()
 	if err2 != nil {
-		fmt.Println("2", err)
+		fmt.Println("2", err2)
 		os.Exit(1)
 	}
 	err3 := cmd3.Run()
 	if err3 != nil {
-		fmt.Println("3", err)
+		fmt.Println("3", err3)
 		os.Exit(1)
 	}
 
