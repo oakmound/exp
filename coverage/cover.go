@@ -47,7 +47,7 @@ func ubuntu() {
 		fmt.Println("Failed to open profile", err)
 		os.Exit(1)
 	}
-	cov, err := os.OpenFile("coverage.txt", os.O_WRONLY|os.O_APPEND, 0644)
+	cov, err := os.OpenFile("./coverage/coverage.txt", os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		fmt.Println("Failed to open coverage file", err)
 		os.Exit(1)
