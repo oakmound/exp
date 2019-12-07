@@ -37,7 +37,7 @@ jobs:
       run: |
         go mod tidy
 
-     name: Test2
+    - name: Test2
       run: ./cover.sh
 
     - name: Push to codecov
