@@ -33,7 +33,7 @@ func ubuntu() {
 	wd, err := os.Getwd()
 	fmt.Println("PWD:", wd, err)
 
-	cmd := exec.Command("go", "test", "-coverprofile=profile.out", "-covermode=atomic", "./screen/...")
+	cmd := exec.Command("go", "test", "--coverprofile=profile.out", "--covermode=atomic", "./screen/...")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
