@@ -29,6 +29,7 @@ func main() {
 
 }
 
+
 func ubuntu() {
 	wd, err := os.Getwd()
 	fmt.Println("PWD:", wd, err)
