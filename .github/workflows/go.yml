@@ -38,46 +38,44 @@ jobs:
         go mod tidy
 
     - name: Test2
-      run: ./cover.sh
+      run: |
+        ./cover.sh
+        cat ./coverage.txt
+
+
+    - name: Get Coverage Store
+      uses: actions/download-artifact@v1
+      with:
+        name: coverage
+
+    - name: Test
+      run: |
+        go run coverage/cover.go ${{ matrix.platform }}
+    
+    - name: Share Coverage Store
+      uses: actions/upload-artifact@v1
+      with:
+          name: coverage
+          path: coverage
+
+  push-coverage:
+    name: Send Artifacts
+    runs-on: ubuntu-latest
+    needs: test-platforms
+    steps:
+
+    - name: Get Coverage Store
+      uses: actions/download-artifact@v1
+      with:
+        name: coverage
+
+    - name: Check Coverage
+      run: |
+        cp ./coverage/coverage.txt ./coverage.txt
+        cat ./coverage.txt
 
     - name: Push to codecov
       uses: codecov/codecov-action@v1.0.2
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         file: ./coverage.txt
-        
-#    - name: Get Coverage Store
-#      uses: actions/download-artifact@v1
-##      with:
-#        name: coverage
-
-#    - name: Test
-#      run: |
-#        go run coverage/cover.go ${{ matrix.platform }}
-#    
-#    - name: Share Coverage Store
-#      uses: actions/upload-artifact@v1
-#      with:
-#          name: coverage
-#          path: coverage
-
-#  push-coverage:
-#    name: Send Artifacts
-#    runs-on: ubuntu-latest
-#    needs: test-platforms
-#    steps:
-#
-#    - name: Get Coverage Store
-#      uses: actions/download-artifact@v1
-#      with:
-#        name: coverage
-
-#    - name: Check Coverage
-#      run: |
-#        cat ./coverage/coverage.txt
-
-#    - name: Push to codecov
-#      uses: codecov/codecov-action@v1.0.2
-#      with:
-#        token: ${{secrets.CODECOV_TOKEN}}
-#        file: ./coverage/coverage.txt
