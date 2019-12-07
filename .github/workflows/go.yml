@@ -19,7 +19,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest] #, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     needs: setup-artifacts
     steps:
@@ -72,4 +72,3 @@ jobs:
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         file: ./coverage/coverage.txt
-        fail_ci_if_error: true
