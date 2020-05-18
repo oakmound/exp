@@ -11,10 +11,10 @@ import (
 )
 
 type JSTexture struct {
-	JSBuffer
+	JSImage
 }
 
-func (jst *JSTexture) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+func (jst *JSTexture) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
 	// We only operate on the expected use case of upload, where sr = src.Bounds
 	// and dp = zeroPoint
 	jst.rect = sr
