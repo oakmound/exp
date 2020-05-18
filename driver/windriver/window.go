@@ -9,6 +9,7 @@ package windriver
 // TODO: implement a back buffer.
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -41,8 +42,10 @@ type windowImpl struct {
 	// whether styles are int32 or uint32s.
 	style, exStyle int32
 	fullscreen     bool
+	borderless     bool
 	maximized      bool
 	windowRect     *w32.RECT
+	clientRect     *w32.RECT
 }
 
 func (w *windowImpl) Release() {
@@ -97,7 +100,55 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 	})
 }
 
-func (w *windowImpl) SetFullScreen(fullscreen bool) {
+func (w *windowImpl) SetBorderless(borderless bool) error {
+	// Don't set borderless if currently fullscreen.
+	if !w.fullscreen && borderless != w.borderless {
+		if !w.borderless {
+			// We don't need to get these values when w.borderless is true
+			// because scaling is impossible without a border to grab to scale.
+			// Todo: except through programatic window resizing.
+			w.windowRect, _ = w32.GetWindowRect(w.hwnd)
+			w.clientRect, _ = w32.GetClientRect(w.hwnd)
+		}
+		w.borderless = borderless
+		if borderless {
+			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE,
+				w.style & ^(w32.WS_CAPTION|w32.WS_THICKFRAME))
+			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE,
+				w.exStyle&^(w32.WS_EX_DLGMODALFRAME|
+					w32.WS_EX_WINDOWEDGE|w32.WS_EX_CLIENTEDGE|w32.WS_EX_STATICEDGE))
+
+			leftOffset := ((w.windowRect.Right - w.windowRect.Left) - w.clientRect.Right) / 2
+			// The -leftOffset here is assuming that the bottom border has the same
+			// height as the left and right do width.
+			topOffset := ((w.windowRect.Bottom - w.windowRect.Top) - w.clientRect.Bottom) - leftOffset
+
+			w32.SetWindowPos(w.hwnd, 0, w.windowRect.Left+leftOffset, w.windowRect.Top+topOffset,
+				w.clientRect.Right, w.clientRect.Bottom,
+				w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+
+		} else {
+			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, w.style)
+			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, w.exStyle)
+
+			// On restore, resize to the previous saved rect size.
+			w32.SetWindowPos(w.hwnd, 0, w.windowRect.Left, w.windowRect.Top,
+				w.windowRect.Right-w.windowRect.Left, w.windowRect.Bottom-w.windowRect.Top,
+				w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+
+		}
+		return nil
+	}
+	if w.fullscreen {
+		return errors.New("cannot combine borderless and fullscreen")
+	}
+	return nil
+}
+
+func (w *windowImpl) SetFullScreen(fullscreen bool) error {
+	if w.borderless {
+		return errors.New("cannot combine borderless and fullscreen")
+	}
 	// Fullscreen impl copied from chromium
 	// https://src.chromium.org/viewvc/chrome/trunk/src/ui/views/win/fullscreen_handler.cc
 	// Save current window state if not already fullscreen.
@@ -109,9 +160,7 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) {
 		if w.maximized {
 			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_RESTORE, 0)
 		}
-		w.style = w32.GetWindowLong(w.hwnd, w32.GWL_STYLE)
-		w.exStyle = w32.GetWindowLong(w.hwnd, w32.GWL_EXSTYLE)
-		w.windowRect = w32.GetWindowRect(w.hwnd)
+		w.windowRect, _ = w32.GetWindowRect(w.hwnd)
 	}
 
 	w.fullscreen = fullscreen
@@ -154,6 +203,7 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) {
 			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_MAXIMIZE, 0)
 		}
 	}
+	return nil
 }
 
 func (w *windowImpl) MoveWindow(x, y, wd, ht int32) error {

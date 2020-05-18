@@ -16,6 +16,13 @@ type WindowGenerator struct {
 	// Fullscreen determines whether the new window will be fullscreen or not.
 	Fullscreen bool
 
+	// Borderless determines whether the new window will have borders or not
+	Borderless bool
+
+	// TopMost determines whether the new window will stay on top of other windows
+	// even when out of focus.
+	TopMost bool
+
 	// NoScaling determines whether the new window will have scaling allowed.
 	// With a zero value of false, scaling is allowed.
 	NoScaling bool
@@ -24,19 +31,10 @@ type WindowGenerator struct {
 	// either are zero, a driver-dependant default will be used for each zero
 	// value. If Fullscreen is true, these values will be ignored.
 	X, Y int32
-
-	// BorderStyle describes the presence of buttons, menus, and thickness of
-	// generated windows' borders.
-	BorderStyle
 }
 
 // A WindowOption is any function that sets up a WindowGenerator.
 type WindowOption func(*WindowGenerator)
-
-// BorderStyle describes whether there are maximize, minimize, etc buttons
-// the size of the border (thick, thin, stylized)
-// todo...
-type BorderStyle int
 
 // Title sets a sanitized form of the input string. In particular, its length will
 // not exceed 4096, and it may be further truncated so that it is valid UTF-8
@@ -60,6 +58,27 @@ func Position(x, y int32) WindowOption {
 	return func(g *WindowGenerator) {
 		g.X = x
 		g.Y = y
+	}
+}
+
+// Fullscreen sets the starting fullscreen boolean of the new window
+func Fullscreen(on bool) WindowOption {
+	return func(g *WindowGenerator) {
+		g.Fullscreen = on
+	}
+}
+
+// Borderless sets the starting borderless boolean of the new window
+// defaults to borders on.
+func Borderless(on bool) WindowOption {
+	return func(g *WindowGenerator) {
+		g.Borderless = on
+	}
+}
+
+func TopMost(on bool) WindowOption {
+	return func(g *WindowGenerator) {
+		g.TopMost = on
 	}
 }
 

@@ -22,7 +22,6 @@ import (
 
 	"github.com/oakmound/shiny/driver/internal/x11key"
 	"github.com/oakmound/shiny/screen"
-	"github.com/oakmound/shiny/unit"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/mouse"
@@ -38,7 +37,8 @@ type screenImpl struct {
 	xsi     *xproto.ScreenInfo
 	keysyms x11key.KeysymTable
 
-	atoms map[string]xproto.Atom
+	atoms      map[string]xproto.Atom
+	numLockMod uint16
 
 	pixelsPerPt  float32
 	pictformat24 render.Pictformat
@@ -75,6 +75,11 @@ var (
 	}
 )
 
+const (
+	millimetersPerInch              = 25.4
+	pointsPerInch                   = 72
+)
+
 func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 	s = &screenImpl{
 		XUtil:   xutil,
@@ -95,7 +100,7 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 		return nil, err
 	}
 	pixelsPerMM := float32(s.xsi.WidthInPixels) / float32(s.xsi.WidthInMillimeters)
-	s.pixelsPerPt = pixelsPerMM * unit.MillimetersPerInch / unit.PointsPerInch
+	s.pixelsPerPt = pixelsPerMM * millimetersPerInch / pointsPerInch
 	if err := s.initPictformats(); err != nil {
 		return nil, err
 	}
@@ -445,6 +450,18 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	xproto.MapWindow(s.xc, xw)
 
 	err = w.MoveWindow(opts.X, opts.Y, int32(width), int32(height))
+	if opts.Fullscreen {
+		err = w.SetFullScreen(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if opts.Borderless {
+		err = w.SetBorderless(true)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return w, err
 }
@@ -462,6 +479,21 @@ func (s *screenImpl) initKeyboardMapping() error {
 	for i := keyLo; i <= keyHi; i++ {
 		s.keysyms[i][0] = uint32(km.Keysyms[(i-keyLo)*n+0])
 		s.keysyms[i][1] = uint32(km.Keysyms[(i-keyLo)*n+1])
+	}
+
+	// Figure out which modifier is the numlock modifier (see chapter 12.7 of the XLib Manual).
+	mm, err := xproto.GetModifierMapping(s.xc).Reply()
+	if err != nil {
+		return err
+	}
+	for modifier := 0; modifier < 8; modifier++ {
+		for i := 0; i < int(mm.KeycodesPerModifier); i++ {
+			const xkNumLock = 0xff7f // XK_Num_Lock from /usr/include/X11/keysymdef.h.
+			if s.keysyms[mm.Keycodes[modifier*int(mm.KeycodesPerModifier)+i]][0] == xkNumLock {
+				s.numLockMod = 1 << uint(modifier)
+				break
+			}
+		}
 	}
 	return nil
 }

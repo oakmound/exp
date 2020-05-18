@@ -34,6 +34,7 @@ enum
 void makeCurrentContext(uintptr_t context) {
 	NSOpenGLContext* ctx = (NSOpenGLContext*)context;
 	[ctx makeCurrentContext];
+	[ctx update];
 }
 
 void flushContext(uintptr_t context) {
@@ -208,15 +209,12 @@ uint64 threadID() {
 }
 
 - (void)windowWillClose:(NSNotification *)notification {
-	// TODO: is this right? Closing a window via the top-left red button
-	// seems to return early without ever calling windowClosing.
-	if (self.window.nextResponder == NULL) {
-		return; // already called close
-	}
-
 	windowClosing((GoUintptr)self);
-	[self.window.nextResponder release];
-	self.window.nextResponder = NULL;
+
+	if (self.window.nextResponder != NULL) {
+		[self.window.nextResponder release];
+		self.window.nextResponder = NULL;
+	}
 }
 @end
 

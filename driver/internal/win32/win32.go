@@ -72,7 +72,11 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 	if err != nil {
 		return 0, err
 	}
-	style, exStyle := WindowsStyle(opts.BorderStyle)
+	style, exStyle := WindowsStyle(opts)
+	// This should be a feature, putting windows on the top layer
+	if opts.TopMost {
+		exStyle = exStyle | WS_EX_TOPMOST
+	}
 	hwnd, err := _CreateWindowEx(exStyle,
 		wcname, title,
 		style,
@@ -93,8 +97,7 @@ func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 
 // WindowsStyle converts a screen.BorderStyle into a style and
 // exStyle for a Windows window
-func WindowsStyle(border screen.BorderStyle) (uint32, uint32) {
-	// ignore input
+func WindowsStyle(gen screen.WindowGenerator) (uint32, uint32) {
 	return WS_OVERLAPPEDWINDOW, 0
 }
 
@@ -137,10 +140,7 @@ func Show(hwnd w32.HWND) {
 }
 
 func Release(hwnd w32.HWND) {
-	// TODO(andlabs): check for errors from this?
-	// TODO(andlabs): remove unsafe
-	w32.DestroyWindow(hwnd)
-	// TODO(andlabs): what happens if we're still painting?
+	w32.SendMessage(hwnd, w32.WM_CLOSE, 0, 0)
 }
 
 func sendFocus(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
@@ -192,7 +192,8 @@ func sendSize(hwnd w32.HWND) {
 
 func sendClose(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	LifecycleEvent(hwnd, lifecycle.StageDead)
-	return 0
+	ptr, _ := w32.DefWindowProc(hwnd, uMsg, wParam, lParam)
+	return ptr
 }
 
 func sendMouseEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
