@@ -139,6 +139,8 @@ func (s *screenImpl) run() {
 		noWindowFound := false
 		switch ev := ev.(type) {
 		case xproto.DestroyNotifyEvent:
+			// Re-enable key press repeating
+			xproto.ChangeKeyboardControlChecked(s.xc, xproto.KbAutoRepeatMode, []uint32{xproto.AutoRepeatModeDefault})
 			s.mu.Lock()
 			delete(s.windows, ev.Window)
 			s.mu.Unlock()
@@ -155,6 +157,8 @@ func (s *screenImpl) run() {
 			}
 			switch xproto.Atom(ev.Data.Data32[0]) {
 			case s.atoms["WM_DELETE_WINDOW"]:
+				// Re-enable key press repeating
+				xproto.ChangeKeyboardControlChecked(s.xc, xproto.KbAutoRepeatMode, []uint32{xproto.AutoRepeatModeDefault})
 				if w := s.findWindow(ev.Window); w != nil {
 					w.lifecycler.SetDead(true)
 					w.lifecycler.SendEvent(w, nil)
@@ -191,6 +195,8 @@ func (s *screenImpl) run() {
 			if w := s.findWindow(ev.Event); w != nil {
 				w.lifecycler.SetFocused(true)
 				w.lifecycler.SendEvent(w, nil)
+				// Disable key press repeating
+				xproto.ChangeKeyboardControlChecked(s.xc, xproto.KbAutoRepeatMode, []uint32{xproto.AutoRepeatModeOff})
 			} else {
 				noWindowFound = true
 			}
@@ -199,6 +205,8 @@ func (s *screenImpl) run() {
 			if w := s.findWindow(ev.Event); w != nil {
 				w.lifecycler.SetFocused(false)
 				w.lifecycler.SendEvent(w, nil)
+				// Re-enable key press repeating
+				xproto.ChangeKeyboardControlChecked(s.xc, xproto.KbAutoRepeatMode, []uint32{xproto.AutoRepeatModeDefault})
 			} else {
 				noWindowFound = true
 			}
