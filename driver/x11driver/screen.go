@@ -143,11 +143,6 @@ func (s *screenImpl) run() {
 		}
 
 		switch ev := thisEv.(type){
-		case xproto.KeyPressEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.handleKey(ev.Detail, ev.State, key.DirPress)
-			} 
-	
 		case xproto.KeyReleaseEvent:
 			// ~~~
 			// Auto repeat disabling nonsense:
@@ -189,12 +184,13 @@ func (s *screenImpl) run() {
 				}
 
 				press, ok := nextEv.(xproto.KeyPressEvent)
-				if ok && press.Sequence == ev.Sequence {
+				if ok && press.Sequence == ev.Sequence && press.Detail == ev.Detail {
 					// Auto repeat press/release. Skip.
 					nextEv = nil
-					continue OUTER
+					continue OUTER 
 				} 
-				s.handleNonKeyEvent(nextEv)
+
+				s.handleSecondLayerEvent(nextEv)
 			}
 			// ~~~
 
@@ -202,13 +198,21 @@ func (s *screenImpl) run() {
 				w.handleKey(ev.Detail, ev.State, key.DirRelease)
 			} 
 			default:
-				s.handleNonKeyEvent(thisEv)
+				s.handleSecondLayerEvent(thisEv)
 		}
 	}
 }
 
-func (s *screenImpl) handleNonKeyEvent(ev xgb.Event) {
+func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
 	switch ev := ev.(type) {
+	case xproto.KeyPressEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleKey(ev.Detail, ev.State, key.DirPress)
+		} 
+	case xproto.KeyReleaseEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleKey(ev.Detail, ev.State, key.DirRelease)
+		} 
 	case xproto.DestroyNotifyEvent:
 		s.mu.Lock()
 		delete(s.windows, ev.Window)
