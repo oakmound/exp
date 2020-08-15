@@ -10,6 +10,7 @@ import (
 	"image/color"
 	"image/draw"
 	"log"
+	"time"
 	"sync"
 
 	"github.com/BurntSushi/xgbutil"
@@ -26,10 +27,6 @@ import (
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/mouse"
 )
-
-// TODO: check that xgb is safe to use concurrently from multiple goroutines.
-// For example, its Conn.WaitForEvent concept is a method, not a channel, so
-// it's not obvious how to interrupt it to service a NewWindow request.
 
 type screenImpl struct {
 	*xgbutil.XUtil
@@ -129,120 +126,162 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 }
 
 func (s *screenImpl) run() {
+	var thisEv xgb.Event
+	var nextEv xgb.Event 
+	var err error
+	OUTER:
 	for {
-		ev, err := s.xc.WaitForEvent()
-		if err != nil {
-			log.Printf("x11driver: xproto.WaitForEvent: %v", err)
-			continue
+		if nextEv == nil {
+			thisEv, err = s.xc.WaitForEvent()
+			if err != nil {
+				log.Printf("x11driver: xproto.WaitForEvent: %v", err)
+				continue
+			}
+		} else {
+			thisEv = nextEv
+			nextEv = nil
 		}
 
-		noWindowFound := false
-		switch ev := ev.(type) {
-		case xproto.DestroyNotifyEvent:
-			s.mu.Lock()
-			delete(s.windows, ev.Window)
-			s.mu.Unlock()
-
-		case shm.CompletionEvent:
-			s.mu.Lock()
-			s.completionKeys = append(s.completionKeys, ev.Sequence)
-			s.handleCompletions()
-			s.mu.Unlock()
-
-		case xproto.ClientMessageEvent:
-			if ev.Type != s.atoms["WM_PROTOCOLS"] || ev.Format != 32 {
-				break
-			}
-			switch xproto.Atom(ev.Data.Data32[0]) {
-			case s.atoms["WM_DELETE_WINDOW"]:
-				if w := s.findWindow(ev.Window); w != nil {
-					w.lifecycler.SetDead(true)
-					w.lifecycler.SendEvent(w, nil)
-				} else {
-					noWindowFound = true
-				}
-			case s.atoms["WM_TAKE_FOCUS"]:
-				xproto.SetInputFocus(s.xc, xproto.InputFocusParent, ev.Window, xproto.Timestamp(ev.Data.Data32[1]))
-			}
-
-		case xproto.ConfigureNotifyEvent:
-			if w := s.findWindow(ev.Window); w != nil {
-				w.handleConfigureNotify(ev)
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.ExposeEvent:
-			if w := s.findWindow(ev.Window); w != nil {
-				// A non-zero Count means that there are more expose events
-				// coming. For example, a non-rectangular exposure (e.g. from a
-				// partially overlapped window) will result in multiple expose
-				// events whose dirty rectangles combine to define the dirty
-				// region. Go's paint events do not provide dirty regions, so
-				// we only pass on the final X11 expose event.
-				if ev.Count == 0 {
-					w.handleExpose()
-				}
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.FocusInEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.lifecycler.SetFocused(true)
-				w.lifecycler.SendEvent(w, nil)
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.FocusOutEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.lifecycler.SetFocused(false)
-				w.lifecycler.SendEvent(w, nil)
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.KeyPressEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.handleKey(ev.Detail, ev.State, key.DirPress)
-			} else {
-				noWindowFound = true
-			}
-
+		switch ev := thisEv.(type){
 		case xproto.KeyReleaseEvent:
+			// ~~~
+			// Auto repeat disabling nonsense:
+			// Auto repeats via X come in this form:
+			// [real-press] [.] [.] [.] [.] [.] [.] [auto-release] [auto-press] [.] [auto-release] [auto-press] [.] [real-release]
+			// If thisEv here represents an auto-release, then that means
+			// there will be swiftly incoming another event which has the same sequence
+			// ID and is an auto press.
+			// When we PollForEvent, we don't block and will get a nil event back
+			// if nothing is waiting for us. So theoretically, because the auto-release
+			// and auto-press come in simultaneously, we just do a single Poll, check
+			// if its an auto press and discard them both if that's the case.
+			//
+			// Problem 1: Theoretically, another event could come in in the middle 
+			// of the release and press-> [auto-release] [mouse-press] [auto-press]
+			// we need to both handle these messages and poll again after handling them
+			// to see if our auto-press came in yet. 
+			//
+			// Problem 2: In practice, auto release and auto-press do -not- come in 
+			// at the same time, so this goroutine could get the first event and hit 
+			// Poll before the next one is added to the event queue. This leads to the
+			// addition of a sleep, to allow event originator goroutines to empty
+			// their queues before we check for the press. This is still imprecise, 
+			// and requires more testing to see if it is sufficient. An overloaded 
+			// system of goroutines could lead to this sleep not being enough. We would
+			// need to fork XGB to change how events are read to properly fix this in
+			// this manner.
+			//
+			// This approach obviously means input releases are not being as accurately
+			// processed as would be ideal. 
+			time.Sleep(1*time.Millisecond)
+			for {
+				nextEv, err = s.xc.PollForEvent()
+				if err != nil {
+					log.Printf("x11driver: xproto.PollForEvent: %v", err)
+				}
+				if nextEv == nil {
+					break
+				}
+
+				press, ok := nextEv.(xproto.KeyPressEvent)
+				if ok && press.Sequence == ev.Sequence && press.Detail == ev.Detail {
+					// Auto repeat press/release. Skip.
+					nextEv = nil
+					continue OUTER 
+				} 
+
+				s.handleSecondLayerEvent(nextEv)
+			}
+			// ~~~
+
 			if w := s.findWindow(ev.Event); w != nil {
 				w.handleKey(ev.Detail, ev.State, key.DirRelease)
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.ButtonPressEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.handleMouse(ev.EventX, ev.EventY, ev.Detail, ev.State, mouse.DirPress)
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.ButtonReleaseEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.handleMouse(ev.EventX, ev.EventY, ev.Detail, ev.State, mouse.DirRelease)
-			} else {
-				noWindowFound = true
-			}
-
-		case xproto.MotionNotifyEvent:
-			if w := s.findWindow(ev.Event); w != nil {
-				w.handleMouse(ev.EventX, ev.EventY, 0, ev.State, mouse.DirNone)
-			} else {
-				noWindowFound = true
-			}
-		}
-
-		if noWindowFound {
-			log.Printf("x11driver: no window found for event %T", ev)
+			} 
+			default:
+				s.handleSecondLayerEvent(thisEv)
 		}
 	}
+}
+
+func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
+	switch ev := ev.(type) {
+	case xproto.KeyPressEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleKey(ev.Detail, ev.State, key.DirPress)
+		} 
+	case xproto.KeyReleaseEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleKey(ev.Detail, ev.State, key.DirRelease)
+		} 
+	case xproto.DestroyNotifyEvent:
+		s.mu.Lock()
+		delete(s.windows, ev.Window)
+		s.mu.Unlock()
+
+	case shm.CompletionEvent:
+		s.mu.Lock()
+		s.completionKeys = append(s.completionKeys, ev.Sequence)
+		s.handleCompletions()
+		s.mu.Unlock()
+
+	case xproto.ClientMessageEvent:
+		if ev.Type != s.atoms["WM_PROTOCOLS"] || ev.Format != 32 {
+			break
+		}
+		switch xproto.Atom(ev.Data.Data32[0]) {
+		case s.atoms["WM_DELETE_WINDOW"]:
+			if w := s.findWindow(ev.Window); w != nil {
+				w.lifecycler.SetDead(true)
+				w.lifecycler.SendEvent(w, nil)
+			} 
+		case s.atoms["WM_TAKE_FOCUS"]:
+			xproto.SetInputFocus(s.xc, xproto.InputFocusParent, ev.Window, xproto.Timestamp(ev.Data.Data32[1]))
+		}
+
+	case xproto.ConfigureNotifyEvent:
+		if w := s.findWindow(ev.Window); w != nil {
+			w.handleConfigureNotify(ev)
+		} 
+	case xproto.ExposeEvent:
+		if w := s.findWindow(ev.Window); w != nil {
+			// A non-zero Count means that there are more expose events
+			// coming. For example, a non-rectangular exposure (e.g. from a
+			// partially overlapped window) will result in multiple expose
+			// events whose dirty rectangles combine to define the dirty
+			// region. Go's paint events do not provide dirty regions, so
+			// we only pass on the final X11 expose event.
+			if ev.Count == 0 {
+				w.handleExpose()
+			}
+		} 
+
+	case xproto.FocusInEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.lifecycler.SetFocused(true)
+			w.lifecycler.SendEvent(w, nil)
+		}
+
+	case xproto.FocusOutEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.lifecycler.SetFocused(false)
+			w.lifecycler.SendEvent(w, nil)
+		}
+
+	case xproto.ButtonPressEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleMouse(ev.EventX, ev.EventY, ev.Detail, ev.State, mouse.DirPress)
+		} 
+
+	case xproto.ButtonReleaseEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleMouse(ev.EventX, ev.EventY, ev.Detail, ev.State, mouse.DirRelease)
+		} 
+
+	case xproto.MotionNotifyEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleMouse(ev.EventX, ev.EventY, 0, ev.State, mouse.DirNone)
+		} 
+	}	
 }
 
 // TODO: is findBuffer and the s.buffers field unused? Delete?
@@ -361,7 +400,7 @@ func (s *screenImpl) NewTexture(size image.Point) (screen.Texture, error) {
 	}
 	xproto.CreatePixmap(s.xc, textureDepth, xm, xproto.Drawable(s.window32), uint16(w), uint16(h))
 	render.CreatePicture(s.xc, xp, xproto.Drawable(xm), s.pictformat32, render.CpRepeat, []uint32{render.RepeatPad})
-	render.SetPictureFilter(s.xc, xp, uint16(len("bilinear")), "bilinear", nil)
+	//render.SetPictureFilter(s.xc, xp, uint16(len("bilinear")), "bilinear", nil)
 	// The X11 server doesn't zero-initialize the pixmap. We do it ourselves.
 	render.FillRectangles(s.xc, render.PictOpSrc, xp, render.Color{}, []xproto.Rectangle{{
 		Width:  uint16(w),
