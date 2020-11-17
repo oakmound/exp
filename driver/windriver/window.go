@@ -100,6 +100,11 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 	})
 }
 
+func (w *windowImpl) SetTitle(title string) error {
+	w32.SetWindowText(w.hwnd, title)
+	return nil
+}
+
 func (w *windowImpl) SetBorderless(borderless bool) error {
 	// Don't set borderless if currently fullscreen.
 	if !w.fullscreen && borderless != w.borderless {
