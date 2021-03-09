@@ -29,6 +29,7 @@ import (
 	"golang.org/x/mobile/event/mouse"
 	"golang.org/x/mobile/event/paint"
 	"golang.org/x/mobile/event/size"
+	"golang.org/x/sys/windows"
 )
 
 type windowImpl struct {
@@ -46,9 +47,19 @@ type windowImpl struct {
 	maximized      bool
 	windowRect     *w32.RECT
 	clientRect     *w32.RECT
+
+	trayGUID *w32.GUID
 }
 
 func (w *windowImpl) Release() {
+	if w.trayGUID != nil {
+		iconData := w32.NOTIFYICONDATA{}
+		iconData.CbSize = uint32(unsafe.Sizeof(iconData))
+		iconData.UFlags = w32.NIF_GUID
+		iconData.HWnd = w.hwnd
+		iconData.GUIDItem = *w.trayGUID
+		w32.Shell_NotifyIcon(w32.NIM_DELETE, &iconData)
+	}
 	win32.Release(w32.HWND(w.hwnd))
 }
 
@@ -211,6 +222,68 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) error {
 	return nil
 }
 
+func (w *windowImpl) SetTrayIcon(iconPath string) error {
+	if w.trayGUID == nil {
+		if err := w.createTrayItem(); err != nil {
+			return err
+		}
+	}
+	iconData := w32.NOTIFYICONDATA{}
+	iconData.CbSize = uint32(unsafe.Sizeof(iconData))
+	iconData.UFlags = w32.NIF_GUID | w32.NIF_MESSAGE
+	iconData.HWnd = w.hwnd
+	iconData.GUIDItem = *w.trayGUID
+	iconData.UFlags = w32.NIF_GUID | w32.NIF_ICON
+	iconData.HIcon = w32.LoadImage(
+		0,
+		windows.StringToUTF16Ptr(iconPath),
+		w32.IMAGE_ICON,
+		0, 0,
+		w32.LR_DEFAULTSIZE|w32.LR_LOADFROMFILE)
+	if !w32.Shell_NotifyIcon(w32.NIM_MODIFY, &iconData) {
+		return fmt.Errorf("failed to create notification icon")
+	}
+	return nil
+}
+
+func (w *windowImpl) ShowNotification(title, msg string, icon bool) error {
+	if w.trayGUID == nil {
+		if err := w.createTrayItem(); err != nil {
+			return err
+		}
+	}
+	iconData := w32.NOTIFYICONDATA{}
+	iconData.CbSize = uint32(unsafe.Sizeof(iconData))
+	iconData.UFlags = w32.NIF_GUID | w32.NIF_INFO
+	iconData.HWnd = w.hwnd
+	iconData.GUIDItem = *w.trayGUID
+	copy(iconData.SzInfoTitle[:], windows.StringToUTF16(title))
+	copy(iconData.SzInfo[:], windows.StringToUTF16(msg))
+	if icon {
+		iconData.DwInfoFlags = w32.NIIF_USER | w32.NIIF_LARGE_ICON
+	}
+
+	if !w32.Shell_NotifyIcon(w32.NIM_MODIFY, &iconData) {
+		return fmt.Errorf("failed to create notification icon")
+	}
+	return nil
+}
+
+func (w *windowImpl) createTrayItem() error {
+	w.trayGUID = new(w32.GUID)
+	*w.trayGUID = w32.MakeGUID()
+	iconData := w32.NOTIFYICONDATA{}
+	iconData.CbSize = uint32(unsafe.Sizeof(iconData))
+	iconData.UFlags = w32.NIF_GUID | w32.NIF_MESSAGE
+	iconData.HWnd = w.hwnd
+	iconData.GUIDItem = *w.trayGUID
+	iconData.UCallbackMessage = w32.WM_APP + 1
+	if !w32.Shell_NotifyIcon(w32.NIM_ADD, &iconData) {
+		return fmt.Errorf("failed to create notification")
+	}
+	return nil
+}
+
 func (w *windowImpl) MoveWindow(x, y, wd, ht int32) error {
 	return win32.MoveWindow(w.hwnd, x, y, wd, ht, true)
 }
@@ -322,6 +395,9 @@ func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
 		To:   to,
 	})
 	w.lifecycleStage = to
+	if w.lifecycleStage == lifecycle.StageDead {
+		w.Release()
+	}
 }
 
 func sizeEvent(hwnd w32.HWND, e size.Event) {
