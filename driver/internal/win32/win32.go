@@ -13,7 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 
@@ -36,11 +38,16 @@ var screenHWND w32.HWND
 
 const (
 	msgCreateWindow = _WM_USER + iota
-	msgMainCallback
 	msgShow
 	msgQuit
 	msgLast
 )
+
+var msgCallbacks *uint32 = func() *uint32 {
+	u := new(uint32)
+	*u = msgLast + 1
+	return u
+}()
 
 // userWM is used to generate private (WM_USER and above) window message IDs
 // for use by screenWindowWndProc and windowWndProc.
@@ -62,9 +69,8 @@ func (m *userWM) next() uint32 {
 
 var currentUserWM userWM
 
-func newWindow(opts screen.WindowGenerator) (w32.HWND, error) {
-	// TODO(brainman): convert windowClass to *uint16 once (in initWindowClass)
-	wcname, err := syscall.UTF16PtrFromString(windowClass)
+func newWindow(opts screen.WindowGenerator, class string) (w32.HWND, error) {
+	wcname, err := syscall.UTF16PtrFromString(class)
 	if err != nil {
 		return 0, err
 	}
@@ -313,16 +319,16 @@ func screenWindowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uint
 	switch uMsg {
 	case msgCreateWindow:
 		p := (*newWindowParams)(unsafe.Pointer(lParam))
-		p.w, p.err = newWindow(p.opts)
-	case msgMainCallback:
-		windowInit.Do(func() {
-			go func() {
-				mainCallback()
-				SendScreenMessage(msgQuit, 0, 0)
-			}()
-		})
+		fmt.Println("creating window", p.class)
+		p.w, p.err = newWindow(p.opts, p.class)
 	case msgQuit:
 		_PostQuitMessage(0)
+	}
+	if callback, ok := callbacks[uMsg]; ok {
+		go func() {
+			callback()
+			SendScreenMessage(msgQuit, 0, 0)
+		}()
 	}
 	fn := screenMsgs[uMsg]
 	if fn != nil {
@@ -377,22 +383,30 @@ func windowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (
 }
 
 type newWindowParams struct {
-	opts screen.WindowGenerator
-	w    w32.HWND
-	err  error
+	opts  screen.WindowGenerator
+	w     w32.HWND
+	class string
+	err   error
 }
 
+var nextWindow = new(int32)
+
 func NewWindow(opts screen.WindowGenerator) (w32.HWND, error) {
+	fmt.Println("w32.NewWindow")
 	var p newWindowParams
 	p.opts = opts
+	p.class = "shiny_Window" + strconv.Itoa(int(atomic.AddInt32(nextWindow, 1)))
+	err := initWindowClass(p.class)
+	if err != nil {
+		return 0, fmt.Errorf("failed to register window: %w", err)
+	}
+
 	SendScreenMessage(msgCreateWindow, 0, uintptr(unsafe.Pointer(&p)))
 	return p.w, p.err
 }
 
-const windowClass = "shiny_Window"
-
-func initWindowClass() (err error) {
-	wcname, err := syscall.UTF16PtrFromString(windowClass)
+func initWindowClass(class string) (err error) {
+	wcname, err := syscall.UTF16PtrFromString(class)
 	if err != nil {
 		return err
 	}
@@ -407,38 +421,47 @@ func initWindowClass() (err error) {
 	return err
 }
 
+var initScreenWindowOnce sync.Once
+
 func initScreenWindow() (err error) {
-	const screenWindowClass = "shiny_ScreenWindow"
-	swc, err := syscall.UTF16PtrFromString(screenWindowClass)
-	if err != nil {
-		return err
-	}
-	emptyString, err := syscall.UTF16PtrFromString("")
-	if err != nil {
-		return err
-	}
-	wc := _WNDCLASS{
-		LpszClassName: swc,
-		LpfnWndProc:   syscall.NewCallback(screenWindowWndProc),
-		HIcon:         hDefaultIcon,
-		HCursor:       hDefaultCursor,
-		HInstance:     hThisInstance,
-		HbrBackground: w32.HWND(w32.COLOR_BTNSHADOW),
-	}
-	_, err = _RegisterClass(&wc)
-	if err != nil {
-		return err
-	}
-	screenHWND, err = _CreateWindowEx(0,
-		swc, emptyString,
-		windowStyle,
-		_CW_USEDEFAULT, _CW_USEDEFAULT,
-		_CW_USEDEFAULT, _CW_USEDEFAULT,
-		w32.HWND_MESSAGE, 0, hThisInstance, 0)
-	if err != nil {
-		return err
-	}
-	return nil
+	var outerErr error
+	initScreenWindowOnce.Do(func() {
+		const screenWindowClass = "shiny_ScreenWindow"
+		swc, err := syscall.UTF16PtrFromString(screenWindowClass)
+		if err != nil {
+			outerErr = err
+			return
+		}
+		emptyString, err := syscall.UTF16PtrFromString("")
+		if err != nil {
+			outerErr = err
+			return
+		}
+		wc := _WNDCLASS{
+			LpszClassName: swc,
+			LpfnWndProc:   syscall.NewCallback(screenWindowWndProc),
+			HIcon:         hDefaultIcon,
+			HCursor:       hDefaultCursor,
+			HInstance:     hThisInstance,
+			HbrBackground: w32.HWND(w32.COLOR_BTNSHADOW),
+		}
+		_, err = _RegisterClass(&wc)
+		if err != nil {
+			outerErr = err
+			return
+		}
+		screenHWND, err = _CreateWindowEx(0,
+			swc, emptyString,
+			windowStyle,
+			_CW_USEDEFAULT, _CW_USEDEFAULT,
+			_CW_USEDEFAULT, _CW_USEDEFAULT,
+			w32.HWND_MESSAGE, 0, hThisInstance, 0)
+		if err != nil {
+			outerErr = err
+			return
+		}
+	})
+	return outerErr
 }
 
 var (
@@ -466,8 +489,9 @@ func initCommon() (err error) {
 
 // Todo: this (and other globals) forces this package to only be able to run one window.
 // Can we change this?
-
-var mainCallback func()
+var (
+	callbacks = map[uint32]func(){}
+)
 
 func Main(f func()) (retErr error) {
 	// It does not matter which OS thread we are on.
@@ -476,11 +500,11 @@ func Main(f func()) (retErr error) {
 	runtime.LockOSThread()
 
 	if err := initCommon(); err != nil {
-		return err
+		return fmt.Errorf("init common failed: %w", err)
 	}
 
 	if err := initScreenWindow(); err != nil {
-		return err
+		return fmt.Errorf("init screen window failed: %w", err)
 	}
 	defer func() {
 		// TODO(andlabs): log an error if this fails?
@@ -488,13 +512,11 @@ func Main(f func()) (retErr error) {
 		// TODO(andlabs): unregister window class
 	}()
 
-	if err := initWindowClass(); err != nil {
-		return err
-	}
+	cb := atomic.AddUint32(msgCallbacks, 1)
 
 	// Prime the pump.
-	mainCallback = f
-	w32.PostMessage(screenHWND, msgMainCallback, 0, 0)
+	callbacks[cb] = f
+	w32.PostMessage(screenHWND, cb, 0, 0)
 
 	// Main message pump.
 	var m w32.MSG

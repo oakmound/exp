@@ -73,7 +73,7 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create window: %w", err)
 	}
 
 	s.mu.Lock()
