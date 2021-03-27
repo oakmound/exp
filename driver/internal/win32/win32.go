@@ -319,17 +319,18 @@ func screenWindowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uint
 	switch uMsg {
 	case msgCreateWindow:
 		p := (*newWindowParams)(unsafe.Pointer(lParam))
-		fmt.Println("creating window", p.class)
 		p.w, p.err = newWindow(p.opts, p.class)
 	case msgQuit:
 		_PostQuitMessage(0)
 	}
+	callbacksLock.RLock()
 	if callback, ok := callbacks[uMsg]; ok {
 		go func() {
 			callback()
 			SendScreenMessage(msgQuit, 0, 0)
 		}()
 	}
+	callbacksLock.RUnlock()
 	fn := screenMsgs[uMsg]
 	if fn != nil {
 		return fn(hwnd, uMsg, wParam, lParam)
@@ -392,7 +393,6 @@ type newWindowParams struct {
 var nextWindow = new(int32)
 
 func NewWindow(opts screen.WindowGenerator) (w32.HWND, error) {
-	fmt.Println("w32.NewWindow")
 	var p newWindowParams
 	p.opts = opts
 	p.class = "shiny_Window" + strconv.Itoa(int(atomic.AddInt32(nextWindow, 1)))
@@ -490,7 +490,8 @@ func initCommon() (err error) {
 // Todo: this (and other globals) forces this package to only be able to run one window.
 // Can we change this?
 var (
-	callbacks = map[uint32]func(){}
+	callbacksLock sync.RWMutex
+	callbacks     = map[uint32]func(){}
 )
 
 func Main(f func()) (retErr error) {
@@ -515,7 +516,9 @@ func Main(f func()) (retErr error) {
 	cb := atomic.AddUint32(msgCallbacks, 1)
 
 	// Prime the pump.
+	callbacksLock.Lock()
 	callbacks[cb] = f
+	callbacksLock.Unlock()
 	w32.PostMessage(screenHWND, cb, 0, 0)
 
 	// Main message pump.
