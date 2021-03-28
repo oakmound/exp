@@ -38,9 +38,9 @@ type handleCreateTextureParams struct {
 
 var msgCreateTexture = win32.AddScreenMsg(handleCreateTexture)
 
-func newTexture(size image.Point) (screen.Texture, error) {
+func newTexture(size image.Point, screenHWND w32.HWND) (screen.Texture, error) {
 	p := handleCreateTextureParams{size: size}
-	win32.SendScreenMessage(msgCreateTexture, 0, uintptr(unsafe.Pointer(&p)))
+	win32.SendScreenMessage(screenHWND, msgCreateTexture, 0, uintptr(unsafe.Pointer(&p)))
 	if p.err != nil {
 		return nil, p.err
 	}

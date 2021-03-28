@@ -9,7 +9,6 @@ package windriver
 import (
 	"fmt"
 	"image"
-	"sync"
 	"unsafe"
 
 	"github.com/oakmound/shiny/driver/internal/win32"
@@ -17,13 +16,14 @@ import (
 	"github.com/oakmound/w32"
 )
 
-var theScreen = &screenImpl{
-	windows: make(map[w32.HWND]*windowImpl),
+type screenImpl struct {
+	screenHWND w32.HWND
 }
 
-type screenImpl struct {
-	mu      sync.Mutex
-	windows map[w32.HWND]*windowImpl
+func newScreen(hwnd w32.HWND) *screenImpl {
+	return &screenImpl{
+		screenHWND: hwnd,
+	}
 }
 
 func (*screenImpl) NewImage(size image.Point) (screen.Image, error) {
@@ -57,15 +57,15 @@ func (*screenImpl) NewImage(size image.Point) (screen.Image, error) {
 	}, nil
 }
 
-func (*screenImpl) NewTexture(size image.Point) (screen.Texture, error) {
-	return newTexture(size)
+func (s *screenImpl) NewTexture(size image.Point) (screen.Texture, error) {
+	return newTexture(size, s.screenHWND)
 }
 
 func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, error) {
 	w := &windowImpl{}
 
 	var err error
-	w.hwnd, err = win32.NewWindow(opts)
+	w.hwnd, err = win32.NewWindow(s.screenHWND, opts)
 	w.style = w32.WS_VISIBLE | w32.WS_CLIPSIBLINGS | w32.WS_OVERLAPPEDWINDOW
 	w.exStyle = w32.WS_EX_WINDOWEDGE
 	if opts.TopMost {
@@ -76,9 +76,9 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 		return nil, fmt.Errorf("failed to create window: %w", err)
 	}
 
-	s.mu.Lock()
-	s.windows[w.hwnd] = w
-	s.mu.Unlock()
+	windowLock.Lock()
+	allWindows[w.hwnd] = w
+	windowLock.Unlock()
 
 	err = win32.ResizeClientRect(w.hwnd, opts)
 	if err != nil {

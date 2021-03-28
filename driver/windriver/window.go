@@ -15,6 +15,7 @@ import (
 	"image/color"
 	"image/draw"
 	"math"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -30,6 +31,11 @@ import (
 	"golang.org/x/mobile/event/paint"
 	"golang.org/x/mobile/event/size"
 	"golang.org/x/sys/windows"
+)
+
+var (
+	windowLock sync.RWMutex
+	allWindows = make(map[w32.HWND]*windowImpl)
 )
 
 type windowImpl struct {
@@ -369,9 +375,9 @@ func (w *windowImpl) Publish() screen.PublishResult {
 
 func init() {
 	send := func(hwnd w32.HWND, e interface{}) {
-		theScreen.mu.Lock()
-		w := theScreen.windows[w32.HWND(hwnd)]
-		theScreen.mu.Unlock()
+		windowLock.RLock()
+		w := allWindows[w32.HWND(hwnd)]
+		windowLock.RUnlock()
 
 		w.Send(e)
 	}
@@ -383,9 +389,9 @@ func init() {
 }
 
 func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
-	theScreen.mu.Lock()
-	w := theScreen.windows[w32.HWND(hwnd)]
-	theScreen.mu.Unlock()
+	windowLock.RLock()
+	w := allWindows[w32.HWND(hwnd)]
+	windowLock.RUnlock()
 
 	if w.lifecycleStage == to {
 		return
@@ -401,9 +407,9 @@ func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
 }
 
 func sizeEvent(hwnd w32.HWND, e size.Event) {
-	theScreen.mu.Lock()
-	w := theScreen.windows[w32.HWND(hwnd)]
-	theScreen.mu.Unlock()
+	windowLock.RLock()
+	w := allWindows[w32.HWND(hwnd)]
+	windowLock.RUnlock()
 
 	w.Send(e)
 

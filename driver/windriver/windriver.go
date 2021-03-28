@@ -19,7 +19,13 @@ import (
 // specific libraries require being on 'the main thread'. It returns when f
 // returns.
 func Main(f func(screen.Screen)) {
-	if err := win32.Main(func() { f(theScreen) }); err != nil {
+	screenHWND, err := win32.NewScreen()
+	if err != nil {
+		f(errscreen.Stub(err))
+		return
+	}
+	screen := newScreen(screenHWND)
+	if err := win32.Main(screenHWND, func() { f(screen) }); err != nil {
 		f(errscreen.Stub(err))
 	}
 }
