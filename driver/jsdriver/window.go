@@ -3,25 +3,29 @@
 package jsdriver
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
-	"runtime"
+	//"runtime"
 	"sync"
 
 	"syscall/js"
 
 	"github.com/oakmound/shiny/screen"
 	"golang.org/x/image/math/f64"
+	"honnef.co/go/js/dom/v2"
 )
 
 type JSWindow struct {
-	ctx       js.Value
-	jsUint8   js.Value
-	uint8Set  bool
-	imgData   js.Value
-	events    []interface{}
-	eventLock sync.Mutex
+	width, height int
+	ctx           *dom.CanvasRenderingContext2D
+	jsUint8       js.Value
+	uint8Set      bool
+	imgData       js.Value
+	imageData     *dom.ImageData
+	events        []interface{}
+	eventLock     sync.Mutex
 }
 
 func (jsc *JSWindow) Release() {
@@ -59,17 +63,14 @@ func (jsc *JSWindow) NextEvent() interface{} {
 // Uploader
 
 func (jsc *JSWindow) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
-	if !jsc.uint8Set {
-		jsc.jsUint8 = js.Global().Get("Uint8ClampedArray").New(src.RGBA().Pix, sr.Max.X, sr.Max.Y)
-		jsc.uint8Set = true
-	} else {
-		jsc.jsUint8.Call("set", src.RGBA().Pix)
-	}
+	fmt.Println("upload start", jsc.width, jsc.height)
 	// This uses a heck of a lot of memory. It'd be wonderful if we didn't need to call New here
 	// but could just refill the old variable
-	jsc.imgData = js.Global().Get("ImageData").New(jsc.jsUint8, sr.Max.X, sr.Max.Y)
-	jsc.ctx.Call("putImageData", jsc.imgData, dp.X, dp.Y)
-	runtime.GC()
+	draw.Draw(jsc.imageData, image.Rect(0, 0, jsc.width, jsc.height), src.RGBA(), image.Point{0, 0}, draw.Src)
+	fmt.Println("draw complete")
+	jsc.ctx.PutImageData(jsc.imageData, 0, 0)
+	//runtime.GC()
+	fmt.Println("upload stop")
 }
 
 func (jsc *JSWindow) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
