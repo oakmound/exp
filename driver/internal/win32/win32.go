@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build windows
 // +build windows
 
 // Package win32 implements a partial shiny screen driver using the Win32 API.
@@ -191,6 +192,9 @@ func sendSize(hwnd w32.HWND) {
 }
 
 func sendClose(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+	// TODO(ktye): DefWindowProc calls DestroyWindow by default.
+	// To intercept destruction of the window, return 0 and call
+	// DestroyWindow when appropriate.
 	LifecycleEvent(hwnd, lifecycle.StageDead)
 	ptr, _ := w32.DefWindowProc(hwnd, uMsg, wParam, lParam)
 	return ptr
@@ -285,7 +289,7 @@ var (
 	KeyEvent       func(hwnd w32.HWND, e key.Event)
 	LifecycleEvent func(hwnd w32.HWND, e lifecycle.Stage)
 
-	// TODO: use the golang.org/x/exp/shiny/driver/internal/lifecycler package
+	// TODO: use the github.com/oakmound/shiny/driver/internal/lifecycler package
 	// instead of or together with the LifecycleEvent callback?
 )
 
@@ -354,9 +358,10 @@ var windowMsgs = map[uint32]func(hwnd w32.HWND, uMsg uint32, wParam, lParam uint
 	_WM_MOUSEMOVE:   sendMouseEvent,
 	_WM_MOUSEWHEEL:  sendMouseEvent,
 
-	_WM_KEYDOWN: sendKeyEvent,
-	_WM_KEYUP:   sendKeyEvent,
-	// TODO case _WM_SYSKEYDOWN, _WM_SYSKEYUP:
+	_WM_KEYDOWN:    sendKeyEvent,
+	_WM_KEYUP:      sendKeyEvent,
+	_WM_SYSKEYDOWN: sendKeyEvent,
+	_WM_SYSKEYUP:   sendKeyEvent,
 }
 
 func AddWindowMsg(fn func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
@@ -390,6 +395,7 @@ func NewWindow(opts screen.WindowGenerator) (w32.HWND, error) {
 }
 
 const windowClass = "shiny_Window"
+const screenWindowClass = "shiny_ScreenWindow"
 
 func initWindowClass() (err error) {
 	wcname, err := syscall.UTF16PtrFromString(windowClass)
@@ -407,8 +413,17 @@ func initWindowClass() (err error) {
 	return err
 }
 
+func closeWindowClass() (err error) {
+	wcname, err := syscall.UTF16PtrFromString(windowClass)
+	if err != nil {
+		return err
+	}
+	_UnregisterClass(wcname, hThisInstance)
+
+	return nil
+}
+
 func initScreenWindow() (err error) {
-	const screenWindowClass = "shiny_ScreenWindow"
 	swc, err := syscall.UTF16PtrFromString(screenWindowClass)
 	if err != nil {
 		return err
@@ -438,6 +453,20 @@ func initScreenWindow() (err error) {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func closeScreenWindow() (err error) {
+	// first destroy window
+	w32.DestroyWindow(screenHWND)
+
+	// then unregister class
+	swc, err := syscall.UTF16PtrFromString(screenWindowClass)
+	if err != nil {
+		return err
+	}
+	_UnregisterClass(swc, hThisInstance)
+
 	return nil
 }
 
@@ -483,14 +512,17 @@ func Main(f func()) (retErr error) {
 		return err
 	}
 	defer func() {
-		// TODO(andlabs): log an error if this fails?
-		w32.DestroyWindow(screenHWND)
 		// TODO(andlabs): unregister window class
+		closeScreenWindow()
 	}()
 
 	if err := initWindowClass(); err != nil {
 		return err
 	}
+	defer func() {
+		// TODO(andlabs): log an error if this fails?
+		closeWindowClass()
+	}()
 
 	// Prime the pump.
 	mainCallback = f

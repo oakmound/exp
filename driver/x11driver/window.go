@@ -69,8 +69,8 @@ func (w *windowImpl) Release() {
 	xproto.DestroyWindow(w.s.xc, w.xw)
 }
 
-func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
-	src.(*bufferImpl).upload(xproto.Drawable(w.xw), w.xg, w.s.xsi.RootDepth, dp, sr)
+func (w *windowImpl) Upload(dp image.Point, src screen.Buffer, sr image.Rectangle) {
+	src.(bufferUploader).upload(xproto.Drawable(w.xw), w.xg, w.s.xsi.RootDepth, dp, sr)
 }
 
 func (w *windowImpl) Fill(dr image.Rectangle, src color.Color, op draw.Op) {
@@ -115,7 +115,7 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) error {
 
 func (w *windowImpl) SetBorderless(borderless bool) error {
 	return x11.SetBorderless(w.s.XUtil, w.xw, borderless)
-} 
+}
 
 func (w *windowImpl) handleConfigureNotify(ev xproto.ConfigureNotifyEvent) {
 	// TODO: does the order of these lifecycle and size events matter? Should

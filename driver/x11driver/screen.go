@@ -10,8 +10,8 @@ import (
 	"image/color"
 	"image/draw"
 	"log"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/xprop"
@@ -49,6 +49,7 @@ type screenImpl struct {
 
 	// opaqueP is a fully opaque, solid fill picture.
 	opaqueP render.Picture
+	useShm  bool
 
 	uniformMu sync.Mutex
 	uniformC  render.Color
@@ -60,6 +61,8 @@ type screenImpl struct {
 	windows         map[xproto.Window]*windowImpl
 	nPendingUploads int
 	completionKeys  []uint16
+
+	keyboardChanged bool
 }
 
 var (
@@ -73,11 +76,11 @@ var (
 )
 
 const (
-	millimetersPerInch              = 25.4
-	pointsPerInch                   = 72
+	millimetersPerInch = 25.4
+	pointsPerInch      = 72
 )
 
-func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
+func newScreenImpl(xutil *xgbutil.XUtil, useShm bool) (s *screenImpl, err error) {
 	s = &screenImpl{
 		XUtil:   xutil,
 		xc:      xutil.Conn(),
@@ -86,6 +89,7 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 		buffers: map[shm.Seg]*bufferImpl{},
 		uploads: map[uint16]chan struct{}{},
 		windows: map[xproto.Window]*windowImpl{},
+		useShm:  useShm,
 	}
 	for _, atom := range initialAtoms {
 		s.atoms[atom], err = xprop.Atm(s.XUtil, atom)
@@ -127,9 +131,9 @@ func newScreenImpl(xutil *xgbutil.XUtil) (s *screenImpl, err error) {
 
 func (s *screenImpl) run() {
 	var thisEv xgb.Event
-	var nextEv xgb.Event 
+	var nextEv xgb.Event
 	var err error
-	OUTER:
+OUTER:
 	for {
 		if nextEv == nil {
 			thisEv, err = s.xc.WaitForEvent()
@@ -142,7 +146,7 @@ func (s *screenImpl) run() {
 			nextEv = nil
 		}
 
-		switch ev := thisEv.(type){
+		switch ev := thisEv.(type) {
 		case xproto.KeyReleaseEvent:
 			// ~~~
 			// Auto repeat disabling nonsense:
@@ -156,24 +160,24 @@ func (s *screenImpl) run() {
 			// and auto-press come in simultaneously, we just do a single Poll, check
 			// if its an auto press and discard them both if that's the case.
 			//
-			// Problem 1: Theoretically, another event could come in in the middle 
+			// Problem 1: Theoretically, another event could come in in the middle
 			// of the release and press-> [auto-release] [mouse-press] [auto-press]
 			// we need to both handle these messages and poll again after handling them
-			// to see if our auto-press came in yet. 
+			// to see if our auto-press came in yet.
 			//
-			// Problem 2: In practice, auto release and auto-press do -not- come in 
-			// at the same time, so this goroutine could get the first event and hit 
+			// Problem 2: In practice, auto release and auto-press do -not- come in
+			// at the same time, so this goroutine could get the first event and hit
 			// Poll before the next one is added to the event queue. This leads to the
 			// addition of a sleep, to allow event originator goroutines to empty
-			// their queues before we check for the press. This is still imprecise, 
-			// and requires more testing to see if it is sufficient. An overloaded 
+			// their queues before we check for the press. This is still imprecise,
+			// and requires more testing to see if it is sufficient. An overloaded
 			// system of goroutines could lead to this sleep not being enough. We would
 			// need to fork XGB to change how events are read to properly fix this in
 			// this manner.
 			//
 			// This approach obviously means input releases are not being as accurately
-			// processed as would be ideal. 
-			time.Sleep(1*time.Millisecond)
+			// processed as would be ideal.
+			time.Sleep(1 * time.Millisecond)
 			for {
 				nextEv, err = s.xc.PollForEvent()
 				if err != nil {
@@ -187,18 +191,13 @@ func (s *screenImpl) run() {
 				if ok && press.Sequence == ev.Sequence && press.Detail == ev.Detail {
 					// Auto repeat press/release. Skip.
 					nextEv = nil
-					continue OUTER 
-				} 
+					continue OUTER
+				}
 
 				s.handleSecondLayerEvent(nextEv)
 			}
-			// ~~~
-
-			if w := s.findWindow(ev.Event); w != nil {
-				w.handleKey(ev.Detail, ev.State, key.DirRelease)
-			} 
-			default:
-				s.handleSecondLayerEvent(thisEv)
+		default:
+			s.handleSecondLayerEvent(thisEv)
 		}
 	}
 }
@@ -206,13 +205,21 @@ func (s *screenImpl) run() {
 func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
 	switch ev := ev.(type) {
 	case xproto.KeyPressEvent:
+		if s.keyboardChanged {
+			s.keyboardChanged = false
+			s.initKeyboardMapping()
+		}
 		if w := s.findWindow(ev.Event); w != nil {
 			w.handleKey(ev.Detail, ev.State, key.DirPress)
-		} 
+		}
 	case xproto.KeyReleaseEvent:
+		if s.keyboardChanged {
+			s.keyboardChanged = false
+			s.initKeyboardMapping()
+		}
 		if w := s.findWindow(ev.Event); w != nil {
 			w.handleKey(ev.Detail, ev.State, key.DirRelease)
-		} 
+		}
 	case xproto.DestroyNotifyEvent:
 		s.mu.Lock()
 		delete(s.windows, ev.Window)
@@ -233,7 +240,7 @@ func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
 			if w := s.findWindow(ev.Window); w != nil {
 				w.lifecycler.SetDead(true)
 				w.lifecycler.SendEvent(w, nil)
-			} 
+			}
 		case s.atoms["WM_TAKE_FOCUS"]:
 			xproto.SetInputFocus(s.xc, xproto.InputFocusParent, ev.Window, xproto.Timestamp(ev.Data.Data32[1]))
 		}
@@ -241,7 +248,7 @@ func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
 	case xproto.ConfigureNotifyEvent:
 		if w := s.findWindow(ev.Window); w != nil {
 			w.handleConfigureNotify(ev)
-		} 
+		}
 	case xproto.ExposeEvent:
 		if w := s.findWindow(ev.Window); w != nil {
 			// A non-zero Count means that there are more expose events
@@ -253,14 +260,22 @@ func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
 			if ev.Count == 0 {
 				w.handleExpose()
 			}
-		} 
+		}
 
 	case xproto.FocusInEvent:
 		if w := s.findWindow(ev.Event); w != nil {
 			w.lifecycler.SetFocused(true)
 			w.lifecycler.SendEvent(w, nil)
 		}
-
+	case xproto.MotionNotifyEvent:
+		if w := s.findWindow(ev.Event); w != nil {
+			w.handleMouse(ev.EventX, ev.EventY, 0, ev.State, mouse.DirNone)
+		}
+		// window not found = true ?
+	case xproto.MappingNotifyEvent:
+		if ev.Request == xproto.MappingModifier || ev.Request == xproto.MappingKeyboard {
+			s.keyboardChanged = true
+		}
 	case xproto.FocusOutEvent:
 		if w := s.findWindow(ev.Event); w != nil {
 			w.lifecycler.SetFocused(false)
@@ -270,18 +285,13 @@ func (s *screenImpl) handleSecondLayerEvent(ev xgb.Event) {
 	case xproto.ButtonPressEvent:
 		if w := s.findWindow(ev.Event); w != nil {
 			w.handleMouse(ev.EventX, ev.EventY, ev.Detail, ev.State, mouse.DirPress)
-		} 
+		}
 
 	case xproto.ButtonReleaseEvent:
 		if w := s.findWindow(ev.Event); w != nil {
 			w.handleMouse(ev.EventX, ev.EventY, ev.Detail, ev.State, mouse.DirRelease)
-		} 
-
-	case xproto.MotionNotifyEvent:
-		if w := s.findWindow(ev.Event); w != nil {
-			w.handleMouse(ev.EventX, ev.EventY, 0, ev.State, mouse.DirNone)
-		} 
-	}	
+		}
+	}
 }
 
 // TODO: is findBuffer and the s.buffers field unused? Delete?
@@ -323,12 +333,26 @@ const (
 )
 
 func (s *screenImpl) NewImage(size image.Point) (retBuf screen.Image, retErr error) {
-	// TODO: detect if the X11 server or connection cannot support SHM pixmaps,
-	// and fall back to regular pixmaps.
 
 	w, h := int64(size.X), int64(size.Y)
 	if w < 0 || maxShmSide < w || h < 0 || maxShmSide < h || maxShmSize < 4*w*h {
 		return nil, fmt.Errorf("x11driver: invalid buffer size %v", size)
+	}
+
+	// If the X11 server or connection cannot support SHM pixmaps,
+	// fall back to regular pixmaps.
+	if !s.useShm {
+		b := &bufferFallbackImpl{
+			xc:   s.xc,
+			size: size,
+			rgba: image.RGBA{
+				Stride: 4 * size.X,
+				Rect:   image.Rectangle{Max: size},
+				Pix:    make([]uint8, 4*size.X*size.Y),
+			},
+		}
+		b.buf = b.rgba.Pix
+		return b, nil
 	}
 
 	b := &bufferImpl{
@@ -516,8 +540,13 @@ func (s *screenImpl) initKeyboardMapping() error {
 		return fmt.Errorf("x11driver: too few keysyms per keycode: %d", n)
 	}
 	for i := keyLo; i <= keyHi; i++ {
-		s.keysyms[i][0] = uint32(km.Keysyms[(i-keyLo)*n+0])
-		s.keysyms[i][1] = uint32(km.Keysyms[(i-keyLo)*n+1])
+		for j := 0; j < 6; j++ {
+			if j < n {
+				s.keysyms.Table[i][j] = uint32(km.Keysyms[(i-keyLo)*n+j])
+			} else {
+				s.keysyms.Table[i][j] = 0
+			}
+		}
 	}
 
 	// Figure out which modifier is the numlock modifier (see chapter 12.7 of the XLib Manual).
@@ -525,12 +554,30 @@ func (s *screenImpl) initKeyboardMapping() error {
 	if err != nil {
 		return err
 	}
+	s.keysyms.NumLockMod, s.keysyms.ModeSwitchMod, s.keysyms.ISOLevel3ShiftMod = 0, 0, 0
+	numLockFound, modeSwitchFound, isoLevel3ShiftFound := false, false, false
+modifierSearchLoop:
 	for modifier := 0; modifier < 8; modifier++ {
 		for i := 0; i < int(mm.KeycodesPerModifier); i++ {
-			const xkNumLock = 0xff7f // XK_Num_Lock from /usr/include/X11/keysymdef.h.
-			if s.keysyms[mm.Keycodes[modifier*int(mm.KeycodesPerModifier)+i]][0] == xkNumLock {
-				s.numLockMod = 1 << uint(modifier)
-				break
+			const (
+				// XK_Num_Lock, XK_Mode_switch and XK_ISO_Level3_Shift from /usr/include/X11/keysymdef.h.
+				xkNumLock        = 0xff7f
+				xkModeSwitch     = 0xff7e
+				xkISOLevel3Shift = 0xfe03
+			)
+			switch s.keysyms.Table[mm.Keycodes[modifier*int(mm.KeycodesPerModifier)+i]][0] {
+			case xkNumLock:
+				s.keysyms.NumLockMod = 1 << uint(modifier)
+				numLockFound = true
+			case xkModeSwitch:
+				s.keysyms.ModeSwitchMod = 1 << uint(modifier)
+				modeSwitchFound = true
+			case xkISOLevel3Shift:
+				s.keysyms.ISOLevel3ShiftMod = 1 << uint(modifier)
+				isoLevel3ShiftFound = true
+			}
+			if numLockFound && modeSwitchFound && isoLevel3ShiftFound {
+				break modifierSearchLoop
 			}
 		}
 	}

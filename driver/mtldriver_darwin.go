@@ -1,9 +1,9 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin && opengl
-// +build darwin,opengl
+//go:build darwin
+// +build darwin
 
 package driver
 
@@ -14,12 +14,12 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/oakmound/shiny/driver/gldriver"
+	"github.com/oakmound/shiny/driver/mtldriver"
 	"github.com/oakmound/shiny/screen"
 )
 
 func main(f func(screen.Screen)) {
-	gldriver.Main(f)
+	mtldriver.Main(f)
 }
 
 var (

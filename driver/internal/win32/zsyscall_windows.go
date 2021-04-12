@@ -59,6 +59,7 @@ var (
 	procToUnicodeEx       = moduser32.NewProc("ToUnicodeEx")
 	procTranslateMessage  = moduser32.NewProc("TranslateMessage")
 	procSetWindowPos      = moduser32.NewProc("SetWindowPos")
+	procUnregisterClassW  = moduser32.NewProc("UnregisterClassW")
 )
 
 func GetDC(hwnd w32.HWND) (dc syscall.Handle, err error) {
@@ -191,5 +192,17 @@ func _RegisterClass(wc *_WNDCLASS) (atom uint16, err error) {
 func _ToUnicodeEx(wVirtKey uint32, wScanCode uint32, lpKeyState *byte, pwszBuff *uint16, cchBuff int32, wFlags uint32, dwhkl syscall.Handle) (ret int32) {
 	r0, _, _ := syscall.Syscall9(procToUnicodeEx.Addr(), 7, uintptr(wVirtKey), uintptr(wScanCode), uintptr(unsafe.Pointer(lpKeyState)), uintptr(unsafe.Pointer(pwszBuff)), uintptr(cchBuff), uintptr(wFlags), uintptr(dwhkl), 0, 0)
 	ret = int32(r0)
+	return
+}
+
+func _TranslateMessage(msg *_MSG) (done bool) {
+	r0, _, _ := syscall.Syscall(procTranslateMessage.Addr(), 1, uintptr(unsafe.Pointer(msg)), 0, 0)
+	done = r0 != 0
+	return
+}
+
+func _UnregisterClass(lpClassName *uint16, hInstance syscall.Handle) (done bool) {
+	r0, _, _ := syscall.Syscall(procUnregisterClassW.Addr(), 2, uintptr(unsafe.Pointer(lpClassName)), uintptr(hInstance), 0)
+	done = r0 != 0
 	return
 }
