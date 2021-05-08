@@ -20,7 +20,6 @@ import (
 	"unsafe"
 
 	"github.com/oakmound/shiny/screen"
-	"github.com/oakmound/w32"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"
 	"golang.org/x/mobile/event/mouse"
@@ -34,7 +33,7 @@ import (
 // in an actual Windows window so they all run on the main thread.
 // Since any messages sent to a window will be executed on the
 // main thread, we can safely use the messages below.
-var screenHWND w32.HWND
+var screenHWND HWND
 
 const (
 	msgCreateWindow = _WM_USER + iota
@@ -69,7 +68,7 @@ func (m *userWM) next() uint32 {
 
 var currentUserWM userWM
 
-func newWindow(opts screen.WindowGenerator, class string) (w32.HWND, error) {
+func newWindow(opts screen.WindowGenerator, class string) (HWND, error) {
 	wcname, err := syscall.UTF16PtrFromString(class)
 	if err != nil {
 		return 0, err
@@ -83,7 +82,7 @@ func newWindow(opts screen.WindowGenerator, class string) (w32.HWND, error) {
 	if opts.TopMost {
 		exStyle = exStyle | WS_EX_TOPMOST
 	}
-	hwnd, err := _CreateWindowEx(exStyle,
+	hwnd, err := CreateWindowEx(exStyle,
 		wcname, title,
 		style,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
@@ -94,7 +93,7 @@ func newWindow(opts screen.WindowGenerator, class string) (w32.HWND, error) {
 	}
 
 	// This is interesting and we'll use it eventually
-	//w32.SetWindowLongPtr(hwnd, w32.GWL_STYLE, 0)
+	//SetWindowLongPtr(hwnd, GWL_STYLE, 0)
 	// TODO(andlabs): use proper nCmdShow
 	// TODO(andlabs): call UpdateWindow()
 
@@ -108,16 +107,15 @@ func WindowsStyle(gen screen.WindowGenerator) (uint32, uint32) {
 }
 
 // ResizeClientRect makes hwnd client rectangle opts.Width by opts.Height in size.
-func ResizeClientRect(hwnd w32.HWND, opts screen.WindowGenerator) error {
+func ResizeClientRect(hwnd HWND, opts screen.WindowGenerator) error {
 	if opts.Width <= 0 || opts.Height <= 0 {
 		return errors.New("Invalid inputs to ResizeClientRect")
 	}
-	var cr, wr _RECT
-	err := _GetClientRect(hwnd, &cr)
+	cr, err := GetClientRect(hwnd)
 	if err != nil {
 		return err
 	}
-	err = _GetWindowRect(hwnd, &wr)
+	wr, err := GetWindowRect(hwnd)
 	if err != nil {
 		return err
 	}
@@ -141,15 +139,15 @@ func ResizeClientRect(hwnd w32.HWND, opts screen.WindowGenerator) error {
 // This is a separate step from NewWindow to give the driver a chance
 // to setup its internal state for a window before events start being
 // delivered.
-func Show(hwnd w32.HWND) {
-	w32.SendMessage(hwnd, msgShow, 0, 0)
+func Show(hwnd HWND) {
+	SendMessage(hwnd, msgShow, 0, 0)
 }
 
-func Release(hwnd w32.HWND) {
-	w32.SendMessage(hwnd, w32.WM_CLOSE, 0, 0)
+func Release(hwnd HWND) {
+	SendMessage(hwnd, WM_CLOSE, 0, 0)
 }
 
-func sendFocus(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendFocus(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	switch uMsg {
 	case _WM_SETFOCUS:
 		LifecycleEvent(hwnd, lifecycle.StageFocused)
@@ -158,17 +156,18 @@ func sendFocus(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uint
 	default:
 		panic(fmt.Sprintf("unexpected focus message: %d", uMsg))
 	}
-	return _DefWindowProc(hwnd, uMsg, wParam, lParam)
+	lResult, _ = DefWindowProc(hwnd, uMsg, wParam, lParam)
+	return lResult
 }
 
-func sendShow(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendShow(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	LifecycleEvent(hwnd, lifecycle.StageVisible)
-	w32.ShowWindow(hwnd, _SW_SHOWDEFAULT)
+	ShowWindow(hwnd, _SW_SHOWDEFAULT)
 	sendSize(hwnd)
 	return 0
 }
 
-func sendSizeEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendSizeEvent(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	wp := (*_WINDOWPOS)(unsafe.Pointer(lParam))
 	if wp.Flags&_SWP_NOSIZE != 0 {
 		return 0
@@ -177,9 +176,9 @@ func sendSizeEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult 
 	return 0
 }
 
-func sendSize(hwnd w32.HWND) {
-	var r _RECT
-	if err := _GetClientRect(hwnd, &r); err != nil {
+func sendSize(hwnd HWND) {
+	r, err := GetClientRect(hwnd)
+	if err != nil {
 		panic(err) // TODO(andlabs)
 	}
 
@@ -196,13 +195,13 @@ func sendSize(hwnd w32.HWND) {
 	})
 }
 
-func sendClose(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendClose(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	LifecycleEvent(hwnd, lifecycle.StageDead)
-	ptr, _ := w32.DefWindowProc(hwnd, uMsg, wParam, lParam)
+	ptr, _ := DefWindowProc(hwnd, uMsg, wParam, lParam)
 	return ptr
 }
 
-func sendMouseEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendMouseEvent(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	e := mouse.Event{
 		X:         float32(_GET_X_LPARAM(lParam)),
 		Y:         float32(_GET_Y_LPARAM(lParam)),
@@ -222,7 +221,7 @@ func sendMouseEvent(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult
 		// DirNone?
 		e.Direction = mouse.DirStep
 
-		x, y, _ := w32.ScreenToClient(hwnd, int(e.X), int(e.Y))
+		x, y, _ := ScreenToClient(hwnd, int(e.X), int(e.Y))
 		e.X = float32(x)
 		e.Y = float32(y)
 	default:
@@ -285,37 +284,34 @@ func keyModifiers() (m key.Modifiers) {
 }
 
 var (
-	MouseEvent     func(hwnd w32.HWND, e mouse.Event)
-	PaintEvent     func(hwnd w32.HWND, e paint.Event)
-	SizeEvent      func(hwnd w32.HWND, e size.Event)
-	KeyEvent       func(hwnd w32.HWND, e key.Event)
-	LifecycleEvent func(hwnd w32.HWND, e lifecycle.Stage)
+	MouseEvent     func(hwnd HWND, e mouse.Event)
+	PaintEvent     func(hwnd HWND, e paint.Event)
+	SizeEvent      func(hwnd HWND, e size.Event)
+	KeyEvent       func(hwnd HWND, e key.Event)
+	LifecycleEvent func(hwnd HWND, e lifecycle.Stage)
 
 	// TODO: use the golang.org/x/exp/shiny/driver/internal/lifecycler package
 	// instead of or together with the LifecycleEvent callback?
 )
 
-func sendPaint(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
+func sendPaint(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	PaintEvent(hwnd, paint.Event{})
-	return _DefWindowProc(hwnd, uMsg, wParam, lParam)
+	lResult, _ = DefWindowProc(hwnd, uMsg, wParam, lParam)
+	return lResult
 }
 
-var screenMsgs = map[uint32]func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){}
+var screenMsgs = map[uint32]func(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){}
 
-func AddScreenMsg(fn func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
+func AddScreenMsg(fn func(hwnd HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
 	uMsg := currentUserWM.next()
-	screenMsgs[uMsg] = func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
+	screenMsgs[uMsg] = func(hwnd HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
 		fn(hwnd, uMsg, wParam, lParam)
 		return 0
 	}
 	return uMsg
 }
 
-var (
-	windowInit = sync.Once{}
-)
-
-func screenWindowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
+func screenWindowWndProc(hwnd HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	switch uMsg {
 	case msgCreateWindow:
 		p := (*newWindowParams)(unsafe.Pointer(lParam))
@@ -335,16 +331,17 @@ func screenWindowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uint
 	if fn != nil {
 		return fn(hwnd, uMsg, wParam, lParam)
 	}
-	return _DefWindowProc(hwnd, uMsg, wParam, lParam)
+	lResult, _ = DefWindowProc(hwnd, uMsg, wParam, lParam)
+	return lResult
 }
 
 //go:uintptrescapes
 
-func SendScreenMessage(screen w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
-	return w32.SendMessage(screen, uMsg, wParam, lParam)
+func SendScreenMessage(screen HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
+	return SendMessage(screen, uMsg, wParam, lParam)
 }
 
-var windowMsgs = map[uint32]func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){
+var windowMsgs = map[uint32]func(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr){
 	_WM_SETFOCUS:         sendFocus,
 	_WM_KILLFOCUS:        sendFocus,
 	_WM_PAINT:            sendPaint,
@@ -366,33 +363,34 @@ var windowMsgs = map[uint32]func(hwnd w32.HWND, uMsg uint32, wParam, lParam uint
 	// TODO case _WM_SYSKEYDOWN, _WM_SYSKEYUP:
 }
 
-func AddWindowMsg(fn func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
+func AddWindowMsg(fn func(hwnd HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
 	uMsg := currentUserWM.next()
-	windowMsgs[uMsg] = func(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
+	windowMsgs[uMsg] = func(hwnd HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
 		fn(hwnd, uMsg, wParam, lParam)
 		return 0
 	}
 	return uMsg
 }
 
-func windowWndProc(hwnd w32.HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
+func windowWndProc(hwnd HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	fn := windowMsgs[uMsg]
 	if fn != nil {
 		return fn(hwnd, uMsg, wParam, lParam)
 	}
-	return _DefWindowProc(hwnd, uMsg, wParam, lParam)
+	lResult, _ = DefWindowProc(hwnd, uMsg, wParam, lParam)
+	return lResult
 }
 
 type newWindowParams struct {
 	opts  screen.WindowGenerator
-	w     w32.HWND
+	w     HWND
 	class string
 	err   error
 }
 
 var nextWindow = new(int32)
 
-func NewWindow(screenHWND w32.HWND, opts screen.WindowGenerator) (w32.HWND, error) {
+func NewWindow(screenHWND HWND, opts screen.WindowGenerator) (HWND, error) {
 	var p newWindowParams
 	p.opts = opts
 	p.class = "shiny_Window" + strconv.Itoa(int(atomic.AddInt32(nextWindow, 1)))
@@ -410,20 +408,20 @@ func initWindowClass(class string) (err error) {
 	if err != nil {
 		return err
 	}
-	_, err = _RegisterClass(&_WNDCLASS{
+	_, err = RegisterClass(&_WNDCLASS{
 		LpszClassName: wcname,
 		LpfnWndProc:   syscall.NewCallback(windowWndProc),
 		HIcon:         hDefaultIcon,
 		HCursor:       hDefaultCursor,
 		HInstance:     hThisInstance,
-		HbrBackground: w32.COLOR_BTNSHADOW,
+		HbrBackground: COLOR_BTNSHADOW,
 	})
 	return err
 }
 
 var nextScreenWindow = new(int32)
 
-func initScreenWindow() (w32.HWND, error) {
+func initScreenWindow() (HWND, error) {
 	screenWindowClass := "shiny_ScreenWindow" + strconv.Itoa(int(atomic.AddInt32(nextScreenWindow, 1)))
 	swc, err := syscall.UTF16PtrFromString(screenWindowClass)
 	if err != nil {
@@ -439,18 +437,18 @@ func initScreenWindow() (w32.HWND, error) {
 		HIcon:         hDefaultIcon,
 		HCursor:       hDefaultCursor,
 		HInstance:     hThisInstance,
-		HbrBackground: w32.HWND(w32.COLOR_BTNSHADOW),
+		HbrBackground: HWND(COLOR_BTNSHADOW),
 	}
-	_, err = _RegisterClass(&wc)
+	_, err = RegisterClass(&wc)
 	if err != nil {
 		return 0, err
 	}
-	screenHWND, err = _CreateWindowEx(0,
+	screenHWND, err = CreateWindowEx(0,
 		swc, emptyString,
 		windowStyle,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
 		_CW_USEDEFAULT, _CW_USEDEFAULT,
-		w32.HWND_MESSAGE, 0, hThisInstance, 0)
+		HWND_MESSAGE, 0, hThisInstance, 0)
 	if err != nil {
 		return 0, err
 	}
@@ -462,17 +460,17 @@ var (
 )
 
 var (
-	hDefaultIcon   w32.HICON
-	hDefaultCursor w32.HCURSOR
-	hThisInstance  w32.HINSTANCE
+	hDefaultIcon   HICON
+	hDefaultCursor HCURSOR
+	hThisInstance  HINSTANCE
 )
 
 func initCommon() (err error) {
-	hDefaultIcon, err = _LoadIcon(0, w32.IDI_APPLICATION)
+	hDefaultIcon, err = LoadIcon(0, IDI_APPLICATION)
 	if err != nil {
 		return err
 	}
-	hDefaultCursor, err = _LoadCursor(0, w32.IDC_ARROW)
+	hDefaultCursor, err = LoadCursor(0, IDC_ARROW)
 	if err != nil {
 		return err
 	}
@@ -487,7 +485,7 @@ var (
 	callbacks     = map[uint32]func(){}
 )
 
-func NewScreen() (w32.HWND, error) {
+func NewScreen() (HWND, error) {
 	if err := initCommon(); err != nil {
 		return 0, fmt.Errorf("init common failed: %w", err)
 	}
@@ -500,10 +498,10 @@ func NewScreen() (w32.HWND, error) {
 	return screenHWND, nil
 }
 
-func Main(screenHWND w32.HWND, f func()) error {
+func Main(screenHWND HWND, f func()) error {
 	defer func() {
 		// TODO(andlabs): log an error if this fails?
-		w32.DestroyWindow(screenHWND)
+		DestroyWindow(screenHWND)
 		// TODO(andlabs): unregister window class
 	}()
 	// It does not matter which OS thread we are on.
@@ -516,20 +514,20 @@ func Main(screenHWND w32.HWND, f func()) error {
 	callbacksLock.Lock()
 	callbacks[cb] = f
 	callbacksLock.Unlock()
-	w32.PostMessage(screenHWND, cb, 0, 0)
+	PostMessage(screenHWND, cb, 0, 0)
 
 	// Main message pump.
-	var m w32.MSG
+	var m MSG
 	for {
-		done, err := _GetMessage(&m, 0, 0, 0)
+		done, err := GetMessage(&m, 0, 0, 0)
 		if err != nil {
 			return fmt.Errorf("win32 GetMessage failed: %v", err)
 		}
 		if done == 0 { // WM_QUIT
 			break
 		}
-		w32.TranslateMessage(&m)
-		w32.DispatchMessage(&m)
+		TranslateMessage(&m)
+		DispatchMessage(&m)
 	}
 
 	return nil

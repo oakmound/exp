@@ -23,7 +23,6 @@ import (
 	"github.com/oakmound/shiny/driver/internal/event"
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
-	"github.com/oakmound/w32"
 	"golang.org/x/image/math/f64"
 	"golang.org/x/mobile/event/key"
 	"golang.org/x/mobile/event/lifecycle"
@@ -35,11 +34,11 @@ import (
 
 var (
 	windowLock sync.RWMutex
-	allWindows = make(map[w32.HWND]*windowImpl)
+	allWindows = make(map[win32.HWND]*windowImpl)
 )
 
 type windowImpl struct {
-	hwnd w32.HWND
+	hwnd win32.HWND
 
 	event.Deque
 
@@ -51,22 +50,25 @@ type windowImpl struct {
 	fullscreen     bool
 	borderless     bool
 	maximized      bool
-	windowRect     *w32.RECT
-	clientRect     *w32.RECT
+	windowRect     *win32.RECT
+	clientRect     *win32.RECT
 
-	trayGUID *w32.GUID
+	// guid is set on intialization and converted to trayGUID
+	// when the tray icon is created.
+	guid     [16]byte
+	trayGUID *win32.GUID
 }
 
 func (w *windowImpl) Release() {
 	if w.trayGUID != nil {
-		iconData := w32.NOTIFYICONDATA{}
+		iconData := win32.NOTIFYICONDATA{}
 		iconData.CbSize = uint32(unsafe.Sizeof(iconData))
-		iconData.UFlags = w32.NIF_GUID
+		iconData.UFlags = win32.NIF_GUID
 		iconData.HWnd = w.hwnd
 		iconData.GUIDItem = *w.trayGUID
-		w32.Shell_NotifyIcon(w32.NIM_DELETE, &iconData)
+		win32.Shell_NotifyIcon(win32.NIM_DELETE, &iconData)
 	}
-	win32.Release(w32.HWND(w.hwnd))
+	win32.Release(win32.HWND(w.hwnd))
 }
 
 func (w *windowImpl) Upload(dp image.Point, src screen.Image, sr image.Rectangle) {
@@ -118,7 +120,7 @@ func (w *windowImpl) DrawUniform(src2dst f64.Aff3, src color.Color, sr image.Rec
 }
 
 func (w *windowImpl) SetTitle(title string) error {
-	w32.SetWindowText(w.hwnd, title)
+	win32.SetWindowText(w.hwnd, title)
 	return nil
 }
 
@@ -129,34 +131,34 @@ func (w *windowImpl) SetBorderless(borderless bool) error {
 			// We don't need to get these values when w.borderless is true
 			// because scaling is impossible without a border to grab to scale.
 			// Todo: except through programatic window resizing.
-			w.windowRect, _ = w32.GetWindowRect(w.hwnd)
-			w.clientRect, _ = w32.GetClientRect(w.hwnd)
+			w.windowRect, _ = win32.GetWindowRect(w.hwnd)
+			w.clientRect, _ = win32.GetClientRect(w.hwnd)
 		}
 		w.borderless = borderless
 		if borderless {
-			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE,
-				w.style & ^(w32.WS_CAPTION|w32.WS_THICKFRAME))
-			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE,
-				w.exStyle&^(w32.WS_EX_DLGMODALFRAME|
-					w32.WS_EX_WINDOWEDGE|w32.WS_EX_CLIENTEDGE|w32.WS_EX_STATICEDGE))
+			win32.SetWindowLong(w.hwnd, win32.GWL_STYLE,
+				w.style & ^(win32.WS_CAPTION|win32.WS_THICKFRAME))
+			win32.SetWindowLong(w.hwnd, win32.GWL_EXSTYLE,
+				w.exStyle&^(win32.WS_EX_DLGMODALFRAME|
+					win32.WS_EX_WINDOWEDGE|win32.WS_EX_CLIENTEDGE|win32.WS_EX_STATICEDGE))
 
 			leftOffset := ((w.windowRect.Right - w.windowRect.Left) - w.clientRect.Right) / 2
 			// The -leftOffset here is assuming that the bottom border has the same
 			// height as the left and right do width.
 			topOffset := ((w.windowRect.Bottom - w.windowRect.Top) - w.clientRect.Bottom) - leftOffset
 
-			w32.SetWindowPos(w.hwnd, 0, w.windowRect.Left+leftOffset, w.windowRect.Top+topOffset,
+			win32.SetWindowPos(w.hwnd, 0, w.windowRect.Left+leftOffset, w.windowRect.Top+topOffset,
 				w.clientRect.Right, w.clientRect.Bottom,
-				w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+				win32.SWP_NOZORDER|win32.SWP_NOACTIVATE|win32.SWP_FRAMECHANGED)
 
 		} else {
-			w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, w.style)
-			w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, w.exStyle)
+			win32.SetWindowLong(w.hwnd, win32.GWL_STYLE, w.style)
+			win32.SetWindowLong(w.hwnd, win32.GWL_EXSTYLE, w.exStyle)
 
 			// On restore, resize to the previous saved rect size.
-			w32.SetWindowPos(w.hwnd, 0, w.windowRect.Left, w.windowRect.Top,
+			win32.SetWindowPos(w.hwnd, 0, w.windowRect.Left, w.windowRect.Top,
 				w.windowRect.Right-w.windowRect.Left, w.windowRect.Bottom-w.windowRect.Top,
-				w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+				win32.SWP_NOZORDER|win32.SWP_NOACTIVATE|win32.SWP_FRAMECHANGED)
 
 		}
 		return nil
@@ -178,51 +180,52 @@ func (w *windowImpl) SetFullScreen(fullscreen bool) error {
 		// Save current window information.  We force the window into restored mode
 		// before going fullscreen because Windows doesn't seem to hide the
 		// taskbar if the window is in the maximized state.
-		w.maximized = w32.IsZoomed(w.hwnd)
+		w.maximized = win32.IsZoomed(w.hwnd)
 		if w.maximized {
-			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_RESTORE, 0)
+			win32.SendMessage(w.hwnd, win32.WM_SYSCOMMAND, win32.SC_RESTORE, 0)
 		}
-		w.windowRect, _ = w32.GetWindowRect(w.hwnd)
+		w.windowRect, _ = win32.GetWindowRect(w.hwnd)
 	}
 
 	w.fullscreen = fullscreen
 
 	if w.fullscreen {
 		// Set new window style and size.
-		w32.SetWindowLong(w.hwnd, w32.GWL_STYLE,
-			w.style & ^(w32.WS_CAPTION|w32.WS_THICKFRAME))
-		w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE,
-			w.exStyle&^(w32.WS_EX_DLGMODALFRAME|
-				w32.WS_EX_WINDOWEDGE|w32.WS_EX_CLIENTEDGE|w32.WS_EX_STATICEDGE))
+		win32.SetWindowLong(w.hwnd, win32.GWL_STYLE,
+			w.style & ^(win32.WS_CAPTION|win32.WS_THICKFRAME))
+		win32.SetWindowLong(w.hwnd, win32.GWL_EXSTYLE,
+			w.exStyle&^(win32.WS_EX_DLGMODALFRAME|
+				win32.WS_EX_WINDOWEDGE|win32.WS_EX_CLIENTEDGE|win32.WS_EX_STATICEDGE))
 		// On expand, if we're given a window_rect, grow to it, otherwise do
 		// not resize.
 		// shiny cmt: Need to look into what this for_metro argument means,
 		// right now we don't use it
 		// if (!for_metro) {
-		monitorInfo := w32.NewMonitorInfo()
-		w32.GetMonitorInfo(w32.MonitorFromWindow(w.hwnd, w32.MONITOR_DEFAULTTONEAREST),
+		monitorInfo := win32.MONITORINFO{}
+		monitorInfo.CbSize = uint32(unsafe.Sizeof(monitorInfo))
+		win32.GetMonitorInfo(win32.MonitorFromWindow(w.hwnd, win32.MONITOR_DEFAULTTONEAREST),
 			&monitorInfo)
 		windowRect := monitorInfo.RcMonitor
-		w32.SetWindowPos(w.hwnd, 0, windowRect.Left, windowRect.Top,
+		win32.SetWindowPos(w.hwnd, 0, windowRect.Left, windowRect.Top,
 			windowRect.Right-windowRect.Left, windowRect.Bottom-windowRect.Top,
-			w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+			win32.SWP_NOZORDER|win32.SWP_NOACTIVATE|win32.SWP_FRAMECHANGED)
 		// }
 	} else {
 		// Reset original window style and size.  The multiple window size/moves
 		// here are ugly, but if SetWindowPos() doesn't redraw, the taskbar won't be
 		// repainted.  Better-looking methods welcome.
-		w32.SetWindowLong(w.hwnd, w32.GWL_STYLE, w.style)
-		w32.SetWindowLong(w.hwnd, w32.GWL_EXSTYLE, w.exStyle)
+		win32.SetWindowLong(w.hwnd, win32.GWL_STYLE, w.style)
+		win32.SetWindowLong(w.hwnd, win32.GWL_EXSTYLE, w.exStyle)
 
 		// if !for_metro {
 		// On restore, resize to the previous saved rect size.
 		newRect := w.windowRect
-		w32.SetWindowPos(w.hwnd, 0, newRect.Left, newRect.Top,
+		win32.SetWindowPos(w.hwnd, 0, newRect.Left, newRect.Top,
 			newRect.Right-newRect.Left, newRect.Bottom-newRect.Top,
-			w32.SWP_NOZORDER|w32.SWP_NOACTIVATE|w32.SWP_FRAMECHANGED)
+			win32.SWP_NOZORDER|win32.SWP_NOACTIVATE|win32.SWP_FRAMECHANGED)
 		//}
 		if w.maximized {
-			w32.SendMessage(w.hwnd, w32.WM_SYSCOMMAND, w32.SC_MAXIMIZE, 0)
+			win32.SendMessage(w.hwnd, win32.WM_SYSCOMMAND, win32.SC_MAXIMIZE, 0)
 		}
 	}
 	return nil
@@ -234,19 +237,23 @@ func (w *windowImpl) SetTrayIcon(iconPath string) error {
 			return err
 		}
 	}
-	iconData := w32.NOTIFYICONDATA{}
+	iconData := win32.NOTIFYICONDATA{}
 	iconData.CbSize = uint32(unsafe.Sizeof(iconData))
-	iconData.UFlags = w32.NIF_GUID | w32.NIF_MESSAGE
+	iconData.UFlags = win32.NIF_GUID | win32.NIF_MESSAGE
 	iconData.HWnd = w.hwnd
 	iconData.GUIDItem = *w.trayGUID
-	iconData.UFlags = w32.NIF_GUID | w32.NIF_ICON
-	iconData.HIcon = w32.LoadImage(
+	iconData.UFlags = win32.NIF_GUID | win32.NIF_ICON
+	var err error
+	iconData.HIcon, err = win32.LoadImage(
 		0,
 		windows.StringToUTF16Ptr(iconPath),
-		w32.IMAGE_ICON,
+		win32.IMAGE_ICON,
 		0, 0,
-		w32.LR_DEFAULTSIZE|w32.LR_LOADFROMFILE)
-	if !w32.Shell_NotifyIcon(w32.NIM_MODIFY, &iconData) {
+		win32.LR_DEFAULTSIZE|win32.LR_LOADFROMFILE)
+	if err != nil {
+		return fmt.Errorf("failed to load icon: %w", err)
+	}
+	if !win32.Shell_NotifyIcon(win32.NIM_MODIFY, &iconData) {
 		return fmt.Errorf("failed to create notification icon")
 	}
 	return nil
@@ -258,33 +265,33 @@ func (w *windowImpl) ShowNotification(title, msg string, icon bool) error {
 			return err
 		}
 	}
-	iconData := w32.NOTIFYICONDATA{}
+	iconData := win32.NOTIFYICONDATA{}
 	iconData.CbSize = uint32(unsafe.Sizeof(iconData))
-	iconData.UFlags = w32.NIF_GUID | w32.NIF_INFO
+	iconData.UFlags = win32.NIF_GUID | win32.NIF_INFO
 	iconData.HWnd = w.hwnd
 	iconData.GUIDItem = *w.trayGUID
 	copy(iconData.SzInfoTitle[:], windows.StringToUTF16(title))
 	copy(iconData.SzInfo[:], windows.StringToUTF16(msg))
 	if icon {
-		iconData.DwInfoFlags = w32.NIIF_USER | w32.NIIF_LARGE_ICON
+		iconData.DwInfoFlags = win32.NIIF_USER | win32.NIIF_LARGE_ICON
 	}
 
-	if !w32.Shell_NotifyIcon(w32.NIM_MODIFY, &iconData) {
+	if !win32.Shell_NotifyIcon(win32.NIM_MODIFY, &iconData) {
 		return fmt.Errorf("failed to create notification icon")
 	}
 	return nil
 }
 
 func (w *windowImpl) createTrayItem() error {
-	w.trayGUID = new(w32.GUID)
-	*w.trayGUID = w32.MakeGUID()
-	iconData := w32.NOTIFYICONDATA{}
+	w.trayGUID = new(win32.GUID)
+	*w.trayGUID = win32.MakeGUID(w.guid)
+	iconData := win32.NOTIFYICONDATA{}
 	iconData.CbSize = uint32(unsafe.Sizeof(iconData))
-	iconData.UFlags = w32.NIF_GUID | w32.NIF_MESSAGE
+	iconData.UFlags = win32.NIF_GUID | win32.NIF_MESSAGE
 	iconData.HWnd = w.hwnd
 	iconData.GUIDItem = *w.trayGUID
-	iconData.UCallbackMessage = w32.WM_APP + 1
-	if !w32.Shell_NotifyIcon(w32.NIM_ADD, &iconData) {
+	iconData.UCallbackMessage = win32.WM_APP + 1
+	if !win32.Shell_NotifyIcon(win32.NIM_ADD, &iconData) {
 		return fmt.Errorf("failed to create notification")
 	}
 	return nil
@@ -294,18 +301,18 @@ func (w *windowImpl) MoveWindow(x, y, wd, ht int32) error {
 	return win32.MoveWindow(w.hwnd, x, y, wd, ht, true)
 }
 
-func drawWindow(dc syscall.Handle, src2dst f64.Aff3, src interface{}, sr image.Rectangle, op draw.Op) (retErr error) {
+func drawWindow(dc win32.HDC, src2dst f64.Aff3, src interface{}, sr image.Rectangle, op draw.Op) (retErr error) {
 	var dr image.Rectangle
 	if src2dst[1] != 0 || src2dst[3] != 0 {
 		// general drawing
 		dr = sr.Sub(sr.Min)
 
-		prevmode, err := _SetGraphicsMode(dc, _GM_ADVANCED)
+		prevmode, err := _SetGraphicsMode(syscall.Handle(dc), _GM_ADVANCED)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			_, err := _SetGraphicsMode(dc, prevmode)
+			_, err := _SetGraphicsMode(syscall.Handle(dc), prevmode)
 			if retErr == nil {
 				retErr = err
 			}
@@ -319,12 +326,12 @@ func drawWindow(dc syscall.Handle, src2dst f64.Aff3, src interface{}, sr image.R
 			eDx:  +float32(src2dst[2]),
 			eDy:  +float32(src2dst[5]),
 		}
-		err = _SetWorldTransform(dc, &x)
+		err = _SetWorldTransform(syscall.Handle(dc), &x)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			err := _ModifyWorldTransform(dc, nil, _MWT_IDENTITY)
+			err := _ModifyWorldTransform(syscall.Handle(dc), nil, _MWT_IDENTITY)
 			if retErr == nil {
 				retErr = err
 			}
@@ -374,23 +381,23 @@ func (w *windowImpl) Publish() screen.PublishResult {
 }
 
 func init() {
-	send := func(hwnd w32.HWND, e interface{}) {
+	send := func(hwnd win32.HWND, e interface{}) {
 		windowLock.RLock()
-		w := allWindows[w32.HWND(hwnd)]
+		w := allWindows[hwnd]
 		windowLock.RUnlock()
 
 		w.Send(e)
 	}
-	win32.MouseEvent = func(hwnd w32.HWND, e mouse.Event) { send(hwnd, e) }
-	win32.PaintEvent = func(hwnd w32.HWND, e paint.Event) { send(hwnd, e) }
-	win32.KeyEvent = func(hwnd w32.HWND, e key.Event) { send(hwnd, e) }
+	win32.MouseEvent = func(hwnd win32.HWND, e mouse.Event) { send(hwnd, e) }
+	win32.PaintEvent = func(hwnd win32.HWND, e paint.Event) { send(hwnd, e) }
+	win32.KeyEvent = func(hwnd win32.HWND, e key.Event) { send(hwnd, e) }
 	win32.LifecycleEvent = lifecycleEvent
 	win32.SizeEvent = sizeEvent
 }
 
-func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
+func lifecycleEvent(hwnd win32.HWND, to lifecycle.Stage) {
 	windowLock.RLock()
-	w := allWindows[w32.HWND(hwnd)]
+	w := allWindows[hwnd]
 	windowLock.RUnlock()
 
 	if w.lifecycleStage == to {
@@ -406,9 +413,9 @@ func lifecycleEvent(hwnd w32.HWND, to lifecycle.Stage) {
 	}
 }
 
-func sizeEvent(hwnd w32.HWND, e size.Event) {
+func sizeEvent(hwnd win32.HWND, e size.Event) {
 	windowLock.RLock()
-	w := allWindows[w32.HWND(hwnd)]
+	w := allWindows[win32.HWND(hwnd)]
 	windowLock.RUnlock()
 
 	w.Send(e)
@@ -445,13 +452,13 @@ const (
 var msgCmd = win32.AddWindowMsg(handleCmd)
 
 func (w *windowImpl) execCmd(c *cmd) {
-	w32.SendMessage(w32.HWND(w.hwnd), msgCmd, 0, uintptr(unsafe.Pointer(c)))
+	win32.SendMessage(win32.HWND(w.hwnd), msgCmd, 0, uintptr(unsafe.Pointer(c)))
 	if c.err != nil {
 		panic(fmt.Sprintf("execCmd faild for cmd.id=%d: %v", c.id, c.err)) // TODO handle errors
 	}
 }
 
-func handleCmd(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) {
+func handleCmd(hwnd win32.HWND, uMsg uint32, wParam, lParam uintptr) {
 	c := (*cmd)(unsafe.Pointer(lParam))
 
 	dc, err := win32.GetDC(hwnd)

@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/oakmound/shiny/driver/internal/swizzle"
+	"github.com/oakmound/shiny/driver/internal/win32"
 )
 
 type bufferImpl struct {
@@ -97,5 +98,5 @@ func (b *bufferImpl) blitToDC(dc syscall.Handle, dp image.Point, sr image.Rectan
 	defer b.postUpload()
 
 	dr := sr.Add(dp.Sub(sr.Min))
-	return copyBitmapToDC(dc, dr, b.hbitmap, sr, draw.Src)
+	return copyBitmapToDC(win32.HDC(dc), dr, b.hbitmap, sr, draw.Src)
 }

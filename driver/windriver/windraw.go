@@ -13,6 +13,8 @@ import (
 	"image/draw"
 	"syscall"
 	"unsafe"
+
+	"github.com/oakmound/shiny/driver/internal/win32"
 )
 
 func mkbitmap(size image.Point) (syscall.Handle, *byte, error) {
@@ -43,8 +45,8 @@ var blendOverFunc = _BLENDFUNCTION{
 	AlphaFormat:         _AC_SRC_ALPHA, // premultiplied
 }
 
-func copyBitmapToDC(dc syscall.Handle, dr image.Rectangle, src syscall.Handle, sr image.Rectangle, op draw.Op) (retErr error) {
-	memdc, err := _CreateCompatibleDC(dc)
+func copyBitmapToDC(dc win32.HDC, dr image.Rectangle, src syscall.Handle, sr image.Rectangle, op draw.Op) (retErr error) {
+	memdc, err := _CreateCompatibleDC(syscall.Handle(dc))
 	if err != nil {
 		return err
 	}
@@ -61,7 +63,7 @@ func copyBitmapToDC(dc syscall.Handle, dr image.Rectangle, src syscall.Handle, s
 		}
 	}()
 
-	if _GetDeviceCaps(dc, _SHADEBLENDCAPS) == _SB_NONE {
+	if _GetDeviceCaps(syscall.Handle(dc), _SHADEBLENDCAPS) == _SB_NONE {
 		// This output device does not support blending capabilities,
 		// so the subsequent output is incorrect, but is the best we
 		// can do on systems that do not support AlphaBlend.
@@ -70,17 +72,17 @@ func copyBitmapToDC(dc syscall.Handle, dr image.Rectangle, src syscall.Handle, s
 
 	switch op {
 	case draw.Src:
-		return _StretchBlt(dc, int32(dr.Min.X), int32(dr.Min.Y), int32(dr.Dx()), int32(dr.Dy()),
+		return _StretchBlt(syscall.Handle(dc), int32(dr.Min.X), int32(dr.Min.Y), int32(dr.Dx()), int32(dr.Dy()),
 			memdc, int32(sr.Min.X), int32(sr.Min.Y), int32(sr.Dx()), int32(sr.Dy()), _SRCCOPY)
 	case draw.Over:
-		return _AlphaBlend(dc, int32(dr.Min.X), int32(dr.Min.Y), int32(dr.Dx()), int32(dr.Dy()),
+		return _AlphaBlend(syscall.Handle(dc), int32(dr.Min.X), int32(dr.Min.Y), int32(dr.Dx()), int32(dr.Dy()),
 			memdc, int32(sr.Min.X), int32(sr.Min.Y), int32(sr.Dx()), int32(sr.Dy()), blendOverFunc.ToUintptr())
 	default:
 		return fmt.Errorf("windriver: invalid draw operation %v", op)
 	}
 }
 
-func fill(dc syscall.Handle, dr image.Rectangle, c color.Color, op draw.Op) error {
+func fill(dc win32.HDC, dr image.Rectangle, c color.Color, op draw.Op) error {
 	r, g, b, a := c.RGBA()
 	r >>= 8
 	g >>= 8
@@ -101,7 +103,7 @@ func fill(dc syscall.Handle, dr image.Rectangle, c color.Color, op draw.Op) erro
 			Right:  int32(dr.Max.X),
 			Bottom: int32(dr.Max.Y),
 		}
-		return _FillRect(dc, &rect, brush)
+		return _FillRect(syscall.Handle(dc), &rect, brush)
 	}
 
 	// AlphaBlend will stretch the input image (using StretchBlt's

@@ -13,14 +13,13 @@ import (
 
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
-	"github.com/oakmound/w32"
 )
 
 type screenImpl struct {
-	screenHWND w32.HWND
+	screenHWND win32.HWND
 }
 
-func newScreen(hwnd w32.HWND) *screenImpl {
+func newScreen(hwnd win32.HWND) *screenImpl {
 	return &screenImpl{
 		screenHWND: hwnd,
 	}
@@ -66,10 +65,10 @@ func (s *screenImpl) NewWindow(opts screen.WindowGenerator) (screen.Window, erro
 
 	var err error
 	w.hwnd, err = win32.NewWindow(s.screenHWND, opts)
-	w.style = w32.WS_VISIBLE | w32.WS_CLIPSIBLINGS | w32.WS_OVERLAPPEDWINDOW
-	w.exStyle = w32.WS_EX_WINDOWEDGE
+	w.style = win32.WS_VISIBLE | win32.WS_CLIPSIBLINGS | win32.WS_OVERLAPPEDWINDOW
+	w.exStyle = win32.WS_EX_WINDOWEDGE
 	if opts.TopMost {
-		w.exStyle |= w32.WS_EX_TOPMOST
+		w.exStyle |= win32.WS_EX_TOPMOST
 	}
 
 	if err != nil {

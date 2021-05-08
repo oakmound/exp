@@ -17,7 +17,6 @@ import (
 
 	"github.com/oakmound/shiny/driver/internal/win32"
 	"github.com/oakmound/shiny/screen"
-	"github.com/oakmound/w32"
 )
 
 type textureImpl struct {
@@ -38,7 +37,7 @@ type handleCreateTextureParams struct {
 
 var msgCreateTexture = win32.AddScreenMsg(handleCreateTexture)
 
-func newTexture(size image.Point, screenHWND w32.HWND) (screen.Texture, error) {
+func newTexture(size image.Point, screenHWND win32.HWND) (screen.Texture, error) {
 	p := handleCreateTextureParams{size: size}
 	win32.SendScreenMessage(screenHWND, msgCreateTexture, 0, uintptr(unsafe.Pointer(&p)))
 	if p.err != nil {
@@ -51,7 +50,7 @@ func newTexture(size image.Point, screenHWND w32.HWND) (screen.Texture, error) {
 	}, nil
 }
 
-func handleCreateTexture(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) {
+func handleCreateTexture(hwnd win32.HWND, uMsg uint32, wParam, lParam uintptr) {
 	// This code needs to run on Windows message pump thread.
 	// Firstly, it calls GetDC(nil) and, according to Windows documentation
 	// (https://msdn.microsoft.com/en-us/library/windows/desktop/dd144871(v=vs.85).aspx),
@@ -71,12 +70,12 @@ func handleCreateTexture(hwnd w32.HWND, uMsg uint32, wParam, lParam uintptr) {
 	}
 	defer win32.ReleaseDC(0, screenDC)
 
-	dc, err := _CreateCompatibleDC(screenDC)
+	dc, err := _CreateCompatibleDC(syscall.Handle(screenDC))
 	if err != nil {
 		p.err = err
 		return
 	}
-	bitmap, err := _CreateCompatibleBitmap(screenDC, int32(p.size.X), int32(p.size.Y))
+	bitmap, err := _CreateCompatibleBitmap(syscall.Handle(screenDC), int32(p.size.X), int32(p.size.Y))
 	if err != nil {
 		_DeleteDC(dc)
 		p.err = err
@@ -92,7 +91,7 @@ func (t *textureImpl) Bounds() image.Rectangle {
 
 func (t *textureImpl) Fill(r image.Rectangle, c color.Color, op draw.Op) {
 	err := t.update(func(dc syscall.Handle) error {
-		return fill(dc, r, c, op)
+		return fill(win32.HDC(dc), r, c, op)
 	})
 	if err != nil {
 		panic(err) // TODO handle error
