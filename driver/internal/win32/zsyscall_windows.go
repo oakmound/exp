@@ -216,6 +216,8 @@ func DispatchMessage(msg *MSG) uintptr {
 
 }
 
+// SendMessage to the specified window.
+// Wrapper around the proc: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagew
 func SendMessage(hwnd HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	ret, _, _ := procSendMessage.Call(
 		uintptr(hwnd),

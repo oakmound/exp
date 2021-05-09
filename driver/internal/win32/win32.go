@@ -39,7 +39,7 @@ const (
 	msgCreateWindow = _WM_USER + iota
 	msgShow
 	msgQuit
-	msgLast
+	msgLast // WM_USER value https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-user
 )
 
 var msgCallbacks *uint32 = func() *uint32 {
@@ -55,6 +55,7 @@ type userWM struct {
 	id uint32
 }
 
+// next id for the given userWM (which is a construct purely used to generate unique ids).
 func (m *userWM) next() uint32 {
 	m.Lock()
 	if m.id == 0 {
@@ -66,6 +67,7 @@ func (m *userWM) next() uint32 {
 	return r
 }
 
+// currentUserM gives a quick handle to globally mess with userWM.
 var currentUserWM userWM
 
 func newWindow(opts screen.WindowGenerator, class string) (HWND, error) {
@@ -143,10 +145,15 @@ func Show(hwnd HWND) {
 	SendMessage(hwnd, msgShow, 0, 0)
 }
 
+// Release sends the close message to the specified window.
+// https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-close
 func Release(hwnd HWND) {
 	SendMessage(hwnd, WM_CLOSE, 0, 0)
 }
 
+// sendFocus change to the specified window.
+// There is some value here but the panic is not safe for consumption.
+// Consider: wrapper func or rewrite.
 func sendFocus(hwnd HWND, uMsg uint32, wParam, lParam uintptr) (lResult uintptr) {
 	switch uMsg {
 	case _WM_SETFOCUS:
@@ -337,6 +344,8 @@ func screenWindowWndProc(hwnd HWND, uMsg uint32, wParam uintptr, lParam uintptr)
 
 //go:uintptrescapes
 
+// SendScreenMessage is a perhaps poorly named wrapper for SendMessage where we know that lParam has a pointer in its call.
+// Ends up calling https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagew so thats cool.
 func SendScreenMessage(screen HWND, uMsg uint32, wParam uintptr, lParam uintptr) (lResult uintptr) {
 	return SendMessage(screen, uMsg, wParam, lParam)
 }
@@ -363,6 +372,8 @@ var windowMsgs = map[uint32]func(hwnd HWND, uMsg uint32, wParam, lParam uintptr)
 	// TODO case _WM_SYSKEYDOWN, _WM_SYSKEYUP:
 }
 
+// AddWindowMsg stores a given window manipulator so it can be accessed via syscalls.
+// Stores a reference to the reference argument for the the given id.
 func AddWindowMsg(fn func(hwnd HWND, uMsg uint32, wParam, lParam uintptr)) uint32 {
 	uMsg := currentUserWM.next()
 	windowMsgs[uMsg] = func(hwnd HWND, uMsg uint32, wParam, lParam uintptr) uintptr {
@@ -390,6 +401,7 @@ type newWindowParams struct {
 
 var nextWindow = new(int32)
 
+// NewWindow attempts to register a screen on the given handle.
 func NewWindow(screenHWND HWND, opts screen.WindowGenerator) (HWND, error) {
 	var p newWindowParams
 	p.opts = opts
@@ -465,6 +477,8 @@ var (
 	hThisInstance  HINSTANCE
 )
 
+// initCommon attempts to set up some standard icons.
+// TODO: Consider running this only once if succesful.
 func initCommon() (err error) {
 	hDefaultIcon, err = LoadIcon(0, IDI_APPLICATION)
 	if err != nil {
@@ -485,6 +499,7 @@ var (
 	callbacks     = map[uint32]func(){}
 )
 
+// NewScreen sets up common infos and then attempts to create a new window.
 func NewScreen() (HWND, error) {
 	if err := initCommon(); err != nil {
 		return 0, fmt.Errorf("init common failed: %w", err)

@@ -449,6 +449,7 @@ const (
 	cmdDrawUniform
 )
 
+// msgCmd is the stored value for our handleCmd function for syscalls.
 var msgCmd = win32.AddWindowMsg(handleCmd)
 
 func (w *windowImpl) execCmd(c *cmd) {
